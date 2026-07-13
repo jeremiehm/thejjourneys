@@ -26,11 +26,11 @@ export function AuditReportView({ report }: { report: AuditReport }) {
   return (
     <div className="space-y-5 text-sm">
       <div className="flex items-center justify-between">
-        <span className="font-medium text-stone-800">Score SEO</span>
+        <span className="font-medium text-stone-800">SEO score</span>
         <ScoreBadge score={report.score} />
       </div>
 
-      <Section title="Titre">
+      <Section title="Title">
         {!report.title.ok && report.title.suggestions.length > 0 ? (
           <ul className="space-y-1">
             {report.title.suggestions.map((s) => (
@@ -58,7 +58,7 @@ export function AuditReportView({ report }: { report: AuditReport }) {
             className="w-full rounded-lg border border-stone-200 bg-stone-50 p-3 text-left hover:border-amber-300"
             onClick={() => applyMetaDescription(report.metaDescription.suggested)}
           >
-            <p className="text-xs text-stone-500 mb-1">Cliquer pour appliquer ({report.metaDescription.suggested.length} car.)</p>
+            <p className="text-xs text-stone-500 mb-1">Click to apply ({report.metaDescription.suggested.length} chars)</p>
             <p className="text-stone-800">{report.metaDescription.suggested}</p>
           </button>
         ) : null}
@@ -66,7 +66,7 @@ export function AuditReportView({ report }: { report: AuditReport }) {
 
       <Section title="Information gain">
         <p className={cn("font-medium", report.informationGain.addsValue ? "text-emerald-700" : "text-red-700")}>
-          {report.informationGain.addsValue ? "Apporte de la valeur" : "Valeur ajoutée faible"}
+          {report.informationGain.addsValue ? "Adds value" : "Low added value"}
         </p>
         <p className="text-stone-600">{report.informationGain.verdict}</p>
         <ul className="mt-2 list-disc space-y-1 pl-4 text-stone-600">
@@ -87,7 +87,7 @@ export function AuditReportView({ report }: { report: AuditReport }) {
       )}
 
       {report.eeat.weakPassages.length > 0 && (
-        <Section title="E-E-A-T (vécu)">
+        <Section title="E-E-A-T (experience)">
           <ul className="space-y-2">
             {report.eeat.weakPassages.map((p) => (
               <li key={p.excerpt}>
@@ -106,7 +106,7 @@ export function AuditReportView({ report }: { report: AuditReport }) {
       )}
 
       {report.internalLinks.length > 0 && (
-        <Section title="Maillage interne">
+        <Section title="Internal links">
           <ul className="space-y-2">
             {report.internalLinks.map((link) => (
               <li key={`${link.anchor}-${link.targetSlug}`} className="rounded-md bg-stone-50 px-2 py-1.5 text-stone-700">
@@ -119,7 +119,7 @@ export function AuditReportView({ report }: { report: AuditReport }) {
       )}
 
       {report.readability.issues.length > 0 && (
-        <Section title="Lisibilité">
+        <Section title="Readability">
           <ul className="list-disc space-y-1 pl-4 text-stone-600">
             {report.readability.issues.map((i) => (
               <li key={i}>{i}</li>

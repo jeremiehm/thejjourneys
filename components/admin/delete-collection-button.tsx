@@ -12,14 +12,14 @@ export function DeleteCollectionButton({ id, title }: DeleteCollectionButtonProp
     <form
       action={deleteCollection}
       onSubmit={(event) => {
-        if (!confirm(`Supprimer la collection « ${title} » ? Les articles associés seront aussi supprimés.`)) {
+        if (!confirm(`Delete collection "${title}"? Associated articles will also be deleted.`)) {
           event.preventDefault();
         }
       }}
     >
       <input type="hidden" name="id" value={id} />
       <button type="submit" className="font-medium text-red-600 hover:text-red-700">
-        Supprimer
+        Delete
       </button>
     </form>
   );

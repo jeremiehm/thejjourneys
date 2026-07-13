@@ -7,12 +7,12 @@ import { useAiEditorOptional } from "./AiEditorContext";
 import { cn } from "@/lib/utils";
 
 const AI_ACTIONS: { action: AiEditAction; label: string }[] = [
-  { action: "rewrite", label: "Réécrire" },
-  { action: "humanize", label: "Humaniser" },
-  { action: "shorten", label: "Raccourcir" },
-  { action: "expand", label: "Développer" },
-  { action: "add_experience", label: "Ajouter du vécu" },
-  { action: "fix_grammar", label: "Corriger" },
+  { action: "rewrite", label: "Rewrite" },
+  { action: "humanize", label: "Humanize" },
+  { action: "shorten", label: "Shorten" },
+  { action: "expand", label: "Expand" },
+  { action: "add_experience", label: "Add experience" },
+  { action: "fix_grammar", label: "Fix grammar" },
 ];
 
 type InlineAiMenuProps = {

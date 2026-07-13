@@ -9,6 +9,7 @@ import {
   Globe2,
   LayoutDashboard,
   LogOut,
+  Bot,
 } from "lucide-react";
 import { signOut } from "@/app/admin/actions";
 import { cn } from "@/lib/utils";
@@ -17,7 +18,8 @@ const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/collections", label: "Collections", icon: FolderOpen },
   { href: "/admin/articles", label: "Articles", icon: FileText },
-  { href: "/", label: "View site", icon: ExternalLink },
+  { href: "/admin/agents", label: "AI Agents", icon: Bot },
+  { href: "/", label: "View site", icon: ExternalLink, external: true },
 ];
 
 type AdminNavProps = {
@@ -51,6 +53,8 @@ export function AdminNav({ userEmail }: AdminNavProps) {
             <Link
               key={item.href}
               href={item.href}
+              target={"external" in item && item.external ? "_blank" : undefined}
+              rel={"external" in item && item.external ? "noopener noreferrer" : undefined}
               className={cn(
                 "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
                 active

@@ -50,7 +50,43 @@ import {
   getSlashMenuRect,
 } from "@/components/admin/NotionEditor/slash-command";
 import type { SlashItem } from "@/components/admin/NotionEditor/slash-items";
+import { uploadAdminImage } from "@/lib/admin/upload-image";
+import { blockIdAtPoint, dataTransferHasImages, extractImageFiles } from "@/lib/admin/image-drop";
 import { cn } from "@/lib/utils";
+
+function getLastLeafBlockId(blocks: EditorBlock[]): string | null {
+  for (let i = blocks.length - 1; i >= 0; i -= 1) {
+    const block = blocks[i]!;
+    if (isRowBlock(block)) {
+      return block.data.children[block.data.children.length - 1]!.block.id;
+    }
+    if (isLeafBlock(block)) return block.id;
+  }
+  return null;
+}
+
+function insertLeavesAfter(blocks: EditorBlock[], afterBlockId: string, leaves: EditorLeafBlock[]): EditorBlock[] {
+  const loc = findBlockLocation(blocks, afterBlockId);
+  if (!loc || leaves.length === 0) return blocks;
+
+  const next = structuredClone(blocks) as EditorBlock[];
+  if (loc.kind === "root") {
+    next.splice(loc.index + 1, 0, ...leaves);
+    return next;
+  }
+
+  const row = next[loc.rowIndex] as RowBlock;
+  const newSlots = leaves.map((leaf) => ({
+    slotId: createId(),
+    flex: 0,
+    block: leaf as RowBlock["data"]["children"][number]["block"],
+  }));
+  row.data.children.splice(loc.slotIndex + 1, 0, ...newSlots);
+  const flex = 1 / row.data.children.length;
+  row.data.children = row.data.children.map((c) => ({ ...c, flex }));
+  next[loc.rowIndex] = row;
+  return next;
+}
 
 type NotionBlockEditorProps = {
   blocks: ArticleBlock[];
@@ -72,11 +108,16 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
   );
   const slashRef = useRef<SlashMenuRef>(null);
   const editorsByBlockId = useRef(new Map<string, Editor>());
+  const pendingFocusBlockId = useRef<string | null>(null);
   const [slashState, setSlashState] = useState<{
     blockId: string;
     query: string;
     rect: () => DOMRect | null;
   } | null>(null);
+  const [isFileDragOver, setIsFileDragOver] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const fileDragDepthRef = useRef(0);
 
   const setEditorBlocks = useCallback(
     (next: EditorBlock[]) => onChange(serializeEditorBlocks(next)),
@@ -186,15 +227,27 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
   }, [onExternalRegisterEditor]);
 
   const focusBlock = useCallback((blockId: string) => {
-    requestAnimationFrame(() => {
+    const tryFocus = (attempt = 0) => {
       const editor = editorsByBlockId.current.get(blockId);
       if (editor) {
         editor.chain().focus("end").run();
         return;
       }
+      if (attempt < 8) {
+        requestAnimationFrame(() => tryFocus(attempt + 1));
+        return;
+      }
       focusNotionEditor(editorRef?.current ?? null);
-    });
+    };
+    requestAnimationFrame(() => tryFocus());
   }, [editorRef]);
+
+  useEffect(() => {
+    const blockId = pendingFocusBlockId.current;
+    if (!blockId) return;
+    pendingFocusBlockId.current = null;
+    focusBlock(blockId);
+  }, [editorBlocks, focusBlock]);
 
   function insertAfter(blockId: string, leaf: EditorLeafBlock, options?: { focus?: boolean }) {
     const loc = findBlockLocation(editorBlocks, blockId);
@@ -225,8 +278,8 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
       const loc = findBlockLocation(editorBlocks, blockId);
       if (!loc) return false;
       const previousId = getPreviousLeafBlockId(editorBlocks, blockId);
+      if (previousId) pendingFocusBlockId.current = previousId;
       setEditorBlocks(removeBlockAt(editorBlocks, loc));
-      if (previousId) setTimeout(() => focusBlock(previousId), 0);
       return true;
     },
     [editorBlocks, focusBlock, setEditorBlocks],
@@ -271,6 +324,93 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
     }, 0);
   }
 
+  const insertImageFiles = useCallback(
+    async (files: File[], anchorBlockId?: string) => {
+      if (files.length === 0) return;
+
+      setImageUploading(true);
+      setImageUploadError(null);
+
+      try {
+        const targetId =
+          anchorBlockId ??
+          getLastLeafBlockId(editorBlocks) ??
+          editorBlocks[editorBlocks.length - 1]?.id ??
+          null;
+        if (!targetId) return;
+
+        const loc = findBlockLocation(editorBlocks, targetId);
+        const targetBlock =
+          loc?.kind === "root"
+            ? (loc.block as EditorLeafBlock)
+            : loc?.kind === "row"
+              ? loc.slot.block
+              : null;
+
+        if (targetBlock?.type === "image" && !targetBlock.data.url && files.length === 1) {
+          const result = await uploadAdminImage(files[0]!);
+          if (!result.ok) throw new Error(result.error);
+          updateBlock(targetId, (b) =>
+            b.type === "image" ? { ...b, data: { ...b.data, url: result.url } } : b,
+          );
+          return;
+        }
+
+        const leaves: EditorLeafBlock[] = [];
+        for (const file of files) {
+          const result = await uploadAdminImage(file);
+          if (!result.ok) throw new Error(result.error);
+          const leaf = createEmptyLeaf("image");
+          if (leaf.type === "image") {
+            leaf.data.url = result.url;
+          }
+          leaves.push(leaf);
+        }
+
+        setEditorBlocks(insertLeavesAfter(editorBlocks, targetId, leaves));
+      } catch (error) {
+        setImageUploadError(error instanceof Error ? error.message : "Upload failed");
+      } finally {
+        setImageUploading(false);
+        setIsFileDragOver(false);
+        fileDragDepthRef.current = 0;
+      }
+    },
+    [editorBlocks, setEditorBlocks, updateBlock],
+  );
+
+  function handleFileDragEnter(event: React.DragEvent) {
+    if (!dataTransferHasImages(event.dataTransfer)) return;
+    event.preventDefault();
+    fileDragDepthRef.current += 1;
+    setIsFileDragOver(true);
+  }
+
+  function handleFileDragLeave() {
+    fileDragDepthRef.current -= 1;
+    if (fileDragDepthRef.current <= 0) {
+      fileDragDepthRef.current = 0;
+      setIsFileDragOver(false);
+    }
+  }
+
+  function handleFileDragOver(event: React.DragEvent) {
+    if (!dataTransferHasImages(event.dataTransfer)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleFileDrop(event: React.DragEvent) {
+    const files = extractImageFiles(event.dataTransfer);
+    if (files.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    fileDragDepthRef.current = 0;
+    setIsFileDragOver(false);
+    const anchorId = blockIdAtPoint(event.clientX, event.clientY) ?? undefined;
+    void insertImageFiles(files, anchorId);
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -278,7 +418,27 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
     >
-      <div className="notion-block-editor space-y-1">
+      <div
+        className={cn(
+          "notion-block-editor relative space-y-1",
+          isFileDragOver && "notion-block-editor--file-drag",
+        )}
+        onDragEnter={handleFileDragEnter}
+        onDragLeave={handleFileDragLeave}
+        onDragOver={handleFileDragOver}
+        onDrop={handleFileDrop}
+      >
+        {isFileDragOver ? (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg border-2 border-dashed border-amber-400 bg-amber-50/80 dark:bg-amber-950/30">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Drop to add image</p>
+          </div>
+        ) : null}
+        {imageUploading ? (
+          <p className="text-xs text-stone-500">Uploading image…</p>
+        ) : null}
+        {imageUploadError ? (
+          <p className="text-xs text-red-600">{imageUploadError}</p>
+        ) : null}
         {editorBlocks.map((block, index) => (
           <RootBlockNode
             key={block.id}
@@ -298,13 +458,14 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
               if (!state) setSlashState(null);
               else setSlashState({ blockId, query: state.query, rect: rect ?? (() => null) });
             }}
+            onImageFilesDrop={(files, blockId) => void insertImageFiles(files, blockId)}
           />
         ))}
       </div>
 
       <DragOverlay dropAnimation={null}>
         {activeId ? (
-          <div className="rounded-md bg-stone-100/80 px-4 py-2 text-sm text-stone-500 shadow-sm">Déplacer…</div>
+          <div className="rounded-md bg-stone-100/80 px-4 py-2 text-sm text-stone-500 shadow-sm">Move…</div>
         ) : null}
       </DragOverlay>
 
@@ -337,6 +498,7 @@ function RootBlockNode({
   onRegisterEditor,
   onRowFlexChange,
   onSlash,
+  onImageFilesDrop,
 }: {
   block: EditorBlock;
   index: number;
@@ -355,6 +517,7 @@ function RootBlockNode({
     state: { query: string } | null,
     rect: (() => DOMRect | null) | null,
   ) => void;
+  onImageFilesDrop: (files: File[], blockId: string) => void;
 }) {
   if (block.type === "row") {
     const row = block;
@@ -375,6 +538,7 @@ function RootBlockNode({
               onDeleteBlock={onDeleteBlock}
               onRegisterEditor={onRegisterEditor}
               onSlash={onSlash}
+              onImageFilesDrop={onImageFilesDrop}
             />
           ))}
         </FlexRowWrapper>
@@ -398,6 +562,7 @@ function RootBlockNode({
       onDeleteBlock={onDeleteBlock}
       onRegisterEditor={onRegisterEditor}
       onSlash={onSlash}
+      onImageFilesDrop={onImageFilesDrop}
     />
   );
 }
@@ -436,6 +601,7 @@ function LeafBlockNode({
   onDeleteBlock,
   onRegisterEditor,
   onSlash,
+  onImageFilesDrop,
 }: {
   droppableId: string;
   block: EditorLeafBlock;
@@ -453,6 +619,7 @@ function LeafBlockNode({
     state: { query: string } | null,
     rect: (() => DOMRect | null) | null,
   ) => void;
+  onImageFilesDrop: (files: File[], blockId: string) => void;
 }) {
   const { setNodeRef: setDropRef } = useDroppable({ id: droppableId });
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: droppableId });
@@ -483,6 +650,7 @@ function LeafBlockNode({
           onDeleteBlock={() => onDeleteBlock(block.id)}
           onRegisterEditor={onRegisterEditor}
           onSlash={onSlash}
+          onImageFilesDrop={(files) => onImageFilesDrop(files, block.id)}
         />
       </BlockWrapper>
     </div>
@@ -497,6 +665,7 @@ function BlockContent({
   onDeleteBlock,
   onRegisterEditor,
   onSlash,
+  onImageFilesDrop,
 }: {
   block: EditorLeafBlock;
   editorRef?: React.MutableRefObject<import("@tiptap/core").Editor | null>;
@@ -509,6 +678,7 @@ function BlockContent({
     state: { query: string } | null,
     rect: (() => DOMRect | null) | null,
   ) => void;
+  onImageFilesDrop: (files: File[]) => void;
 }) {
   if (block.type === "text") {
     return (
@@ -522,11 +692,12 @@ function BlockContent({
         onNewBlock={(payload) => onNewBlock(payload.markdown)}
         onDeleteBlock={onDeleteBlock}
         onSlashTrigger={(state, rect) => onSlash(block.id, state, rect)}
+        onImageFilesDrop={onImageFilesDrop}
       />
     );
   }
   if (block.type === "image") {
-    return <ImageBlock block={block} onChange={onUpdate} />;
+    return <ImageBlock block={block} onChange={onUpdate} onFilesDrop={onImageFilesDrop} />;
   }
   if (block.type === "divider") {
     return <hr className="my-4 border-stone-200 dark:border-stone-700" />;
@@ -536,7 +707,7 @@ function BlockContent({
       <textarea
         value={block.data.text}
         onChange={(e) => onUpdate({ ...block, data: { ...block.data, text: e.target.value } })}
-        placeholder="Citation…"
+        placeholder="Quote…"
         rows={2}
         className="w-full resize-none border-0 bg-transparent text-xl font-medium italic text-stone-800 outline-none dark:text-stone-200"
       />

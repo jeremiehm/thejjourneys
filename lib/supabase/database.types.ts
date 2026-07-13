@@ -124,6 +124,32 @@ export type Database = {
           },
         ];
       };
+      ai_agents: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          description: string | null;
+          context: string;
+          tone: string | null;
+          is_default: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          description?: string | null;
+          context?: string;
+          tone?: string | null;
+          is_default?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["ai_agents"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

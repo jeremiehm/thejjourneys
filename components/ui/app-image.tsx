@@ -8,14 +8,36 @@ type AppImageProps = {
   priority?: boolean;
 };
 
+/** Supabase Storage must bypass the Next.js optimizer (SSRF / private IP resolution). */
+function shouldLoadDirectly(src: string): boolean {
+  try {
+    const host = new URL(src).hostname;
+    return host.endsWith(".supabase.co") || host.endsWith(".supabase.in");
+  } catch {
+    return false;
+  }
+}
+
 export function AppImage({ src, alt, className, priority }: AppImageProps) {
-  if (!src) {
-    return <div className={cn("flex h-full min-h-48 items-center justify-center bg-stone-200 text-sm text-stone-500", className)}>Image to add</div>;
+  const trimmed = src?.trim();
+  if (!trimmed) return null;
+
+  if (shouldLoadDirectly(trimmed)) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={trimmed}
+        alt={alt}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+        className={cn("absolute inset-0 h-full w-full object-cover", className)}
+      />
+    );
   }
 
   return (
     <Image
-      src={src}
+      src={trimmed}
       alt={alt}
       fill
       priority={priority}

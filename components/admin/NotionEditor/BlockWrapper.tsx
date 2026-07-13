@@ -25,9 +25,11 @@ type BlockWrapperProps = {
 };
 
 const TRANSFORM_OPTIONS: { type: EditorLeafBlock["type"]; label: string }[] = [
-  { type: "text", label: "Texte" },
+  { type: "text", label: "Text" },
   { type: "image", label: "Image" },
 ];
+
+const CHROME_HIDE_DELAY_MS = 220;
 
 export function BlockWrapper({
   blockId,
@@ -40,28 +42,54 @@ export function BlockWrapper({
   className,
 }: BlockWrapperProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [chromeHovered, setChromeHovered] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const rowRef = useRef<HTMLDivElement>(null);
+  const blockRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const dragClicked = useRef(false);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const chromeVisible = chromeHovered || menuOpen || isDragging;
+
+  function showChrome() {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    setChromeHovered(true);
+  }
+
+  function scheduleHideChrome() {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      setChromeHovered(false);
+      hideTimerRef.current = null;
+    }, CHROME_HIDE_DELAY_MS);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, []);
 
   useLayoutEffect(() => {
-    const row = rowRef.current;
+    const block = blockRef.current;
     const content = contentRef.current;
-    if (!row || !content) return;
+    if (!block || !content) return;
 
     const apply = () => {
-      const metrics = measureBlockActionsAlign(content, row);
-      row.style.setProperty("--block-actions-top", `${metrics.top}px`);
-      row.style.setProperty("--block-actions-height", `${metrics.height}px`);
-      row.style.setProperty("--block-actions-cap-offset", `${metrics.capOffset}px`);
-      row.dataset.actionsAlign = metrics.align;
+      const metrics = measureBlockActionsAlign(content, block);
+      block.style.setProperty("--block-actions-top", `${metrics.top}px`);
+      block.style.setProperty("--block-actions-height", `${metrics.height}px`);
+      block.style.setProperty("--block-actions-cap-offset", `${metrics.capOffset}px`);
+      block.dataset.actionsAlign = metrics.align;
     };
 
     apply();
     const resizeObserver = new ResizeObserver(apply);
     resizeObserver.observe(content);
-    resizeObserver.observe(row);
+    resizeObserver.observe(block);
 
     const mutationObserver = new MutationObserver(apply);
     mutationObserver.observe(content, {
@@ -90,46 +118,53 @@ export function BlockWrapper({
 
   return (
     <div
-      className={cn("notion-block", isDragging && "opacity-40", className)}
+      ref={blockRef}
+      className={cn(
+        "notion-block",
+        chromeVisible && "is-chrome-visible",
+        menuOpen && "is-chrome-active",
+        isDragging && "opacity-40",
+        className,
+      )}
       data-block-id={blockId}
+      data-actions-align="default"
+      onMouseEnter={showChrome}
+      onMouseLeave={scheduleHideChrome}
     >
-      <div ref={rowRef} className="block-row" data-actions-align="default">
-        <div className="block-actions">
-          <button type="button" aria-label="Ajouter en dessous" onClick={onAddBelow} className="btn-add notion-chrome-btn">
-            +
-          </button>
-          <button
-            type="button"
-            aria-label="Déplacer ou menu"
-            className="btn-drag notion-chrome-btn"
-            {...dragAttributes}
-            {...dragListeners}
-            onPointerDown={(event) => {
-              dragClicked.current = true;
-              dragListeners?.onPointerDown?.(event);
-            }}
-            onPointerUp={(event) => {
-              if (dragClicked.current && !isDragging) {
-                event.preventDefault();
-                event.stopPropagation();
-                setMenuOpen((open) => !open);
-              }
-              dragClicked.current = false;
-            }}
-          >
-            ⠿
-          </button>
-        </div>
-
-        <div ref={contentRef} className="block-content">
-          {children}
-        </div>
+      <div
+        className="block-actions"
+        onMouseEnter={showChrome}
+        onMouseLeave={scheduleHideChrome}
+      >
+        <button type="button" aria-label="Add below" onClick={onAddBelow} className="btn-add notion-chrome-btn">
+          +
+        </button>
+        <button
+          type="button"
+          aria-label="Move or menu"
+          className="btn-drag notion-chrome-btn"
+          {...dragAttributes}
+          {...dragListeners}
+          onPointerDown={(event) => {
+            dragClicked.current = true;
+            dragListeners?.onPointerDown?.(event);
+          }}
+          onPointerUp={(event) => {
+            if (dragClicked.current && !isDragging) {
+              event.preventDefault();
+              event.stopPropagation();
+              setMenuOpen((open) => !open);
+            }
+            dragClicked.current = false;
+          }}
+        >
+          ⠿
+        </button>
 
         {menuOpen ? (
           <div
             ref={menuRef}
-            className="block-context-menu absolute left-[-200px] z-50 min-w-[180px] rounded-lg border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-700 dark:bg-[#252525]"
-            style={{ top: "var(--block-actions-top, 0)" }}
+            className="block-context-menu absolute right-full top-0 z-50 mr-2 min-w-[180px] rounded-lg border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-700 dark:bg-[#252525]"
           >
             <MenuItem
               onClick={() => {
@@ -137,7 +172,7 @@ export function BlockWrapper({
                 setMenuOpen(false);
               }}
             >
-              🗑 Supprimer
+              🗑 Delete
             </MenuItem>
             <MenuItem
               onClick={() => {
@@ -145,10 +180,10 @@ export function BlockWrapper({
                 setMenuOpen(false);
               }}
             >
-              📋 Dupliquer
+              📋 Duplicate
             </MenuItem>
             <div className="my-1 border-t border-stone-100 dark:border-stone-700" />
-            <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-stone-400">Transformer en</p>
+            <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-stone-400">Turn into</p>
             {TRANSFORM_OPTIONS.map((opt) => (
               <MenuItem
                 key={opt.type}
@@ -166,10 +201,16 @@ export function BlockWrapper({
                 setMenuOpen(false);
               }}
             >
-              🔗 Copier le lien du bloc
+              🔗 Copy block link
             </MenuItem>
           </div>
         ) : null}
+      </div>
+
+      <div className="block-row">
+        <div ref={contentRef} className="block-content">
+          {children}
+        </div>
       </div>
     </div>
   );

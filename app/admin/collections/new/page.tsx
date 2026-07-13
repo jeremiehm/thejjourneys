@@ -9,7 +9,7 @@ export default async function NewCollectionPage() {
       articles={articles}
       breadcrumbs={[
         { label: "Collections", href: "/admin/collections" },
-        { label: "Nouvelle collection" },
+        { label: "New collection" },
       ]}
     />
   );

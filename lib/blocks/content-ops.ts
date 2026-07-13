@@ -13,13 +13,10 @@ const SNAP_RATIOS = [
 export function detectDropZone(rect: DOMRect, clientX: number, clientY: number): DropZone {
   const relX = (clientX - rect.left) / rect.width;
   const relY = (clientY - rect.top) / rect.height;
-  const edgeX = 0.3;
-  const edgeY = 0.3;
 
-  if (relX < edgeX) return "left";
-  if (relX > 1 - edgeX) return "right";
-  if (relY < edgeY) return "before";
-  return "after";
+  if (relX < 0.15) return "left";
+  if (relX > 0.85) return "right";
+  return relY < 0.5 ? "before" : "after";
 }
 
 export function snapRowFlexes(count: number, flexes: number[]): number[] {

@@ -64,7 +64,7 @@ export const SlashMenu = forwardRef<SlashMenuRef, SlashMenuProps>(function Slash
       style={{ top: rect.bottom + 8, left: rect.left }}
     >
       {flatItems.length === 0 ? (
-        <p className="px-3 py-2 text-sm text-stone-500">Aucun résultat</p>
+        <p className="px-3 py-2 text-sm text-stone-500">No results</p>
       ) : (
         groups.map((group) => (
           <div key={group.label}>

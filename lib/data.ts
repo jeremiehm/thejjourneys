@@ -41,7 +41,7 @@ function mapArticle(row: ArticleRow): Article {
   return {
     ...row,
     meta_description: row.meta_description ?? null,
-    lang: row.lang ?? "fr",
+    lang: row.lang ?? "en",
     cover_type: row.cover_type ?? "banner",
     content: parseArticleContent(row.content),
     author: row.authors ?? null,

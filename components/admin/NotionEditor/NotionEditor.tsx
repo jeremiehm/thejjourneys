@@ -21,9 +21,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { uploadAdminImage } from "@/lib/admin/upload-image";
 import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown-editor";
+import { dataTransferHasImages, extractImageFiles } from "@/lib/admin/image-drop";
 import { EditorBubbleMenu } from "@/components/admin/NotionEditor/BubbleMenu";
+import { LinkInputFloating } from "@/components/admin/NotionEditor/LinkInputFloating";
+import { createLinkShortcutExtension } from "@/components/admin/NotionEditor/link-shortcut";
 import { SlashMenu, type SlashMenuRef } from "@/components/admin/NotionEditor/SlashMenu";
 import type { SlashItem } from "@/components/admin/NotionEditor/slash-items";
 import {
@@ -38,6 +41,12 @@ import {
   getSlashMatch,
   getSlashMenuRect,
 } from "@/components/admin/NotionEditor/slash-command";
+
+/** Non-inclusive so Enter at end of link exits the mark before block split */
+const NotionLink = Link.extend({
+  inclusive: false,
+});
+
 const Callout = Node.create({
   name: "callout",
   group: "block",
@@ -72,6 +81,8 @@ type NotionEditorProps = {
     state: { query: string } | null,
     getRect: (() => DOMRect | null) | null,
   ) => void;
+  /** Drop image files onto this text block → insert image block(s) after */
+  onImageFilesDrop?: (files: File[]) => void;
 };
 
 export function NotionEditor({
@@ -84,6 +95,7 @@ export function NotionEditor({
   onNewBlock,
   onDeleteBlock,
   onSlashTrigger,
+  onImageFilesDrop,
 }: NotionEditorProps) {
   const slashRef = useRef<SlashMenuRef>(null);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
@@ -91,15 +103,20 @@ export function NotionEditor({
   const [mediaDialog, setMediaDialog] = useState<"image" | "video" | null>(null);
   const [mediaUrl, setMediaUrl] = useState("");
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [linkEditorOpen, setLinkEditorOpen] = useState(false);
 
   const onNewBlockRef = useRef(onNewBlock);
   const onDeleteBlockRef = useRef(onDeleteBlock);
+  const onImageFilesDropRef = useRef(onImageFilesDrop);
   useEffect(() => {
     onNewBlockRef.current = onNewBlock;
   }, [onNewBlock]);
   useEffect(() => {
     onDeleteBlockRef.current = onDeleteBlock;
   }, [onDeleteBlock]);
+  useEffect(() => {
+    onImageFilesDropRef.current = onImageFilesDrop;
+  }, [onImageFilesDrop]);
 
   const blockEnterExtension = useMemo(
     () =>
@@ -117,17 +134,30 @@ export function NotionEditor({
     [blockMode, onDeleteBlock],
   );
 
+  const linkShortcutExtension = useMemo(
+    () => createLinkShortcutExtension(() => setLinkEditorOpen(true)),
+    [],
+  );
+
   const editor = useEditor({
     immediatelyRender: false,
+    shouldRerenderOnTransaction: true,
     extensions: [
       StarterKit.configure({
+        link: false,
+        underline: false,
         heading: { levels: [1, 2, 3] },
         hardBreak: { keepMarks: true },
         bulletList: { keepMarks: true, keepAttributes: false },
         orderedList: { keepMarks: true, keepAttributes: false },
       }),
       Underline,
-      Link.configure({ openOnClick: false }),
+      NotionLink.configure({
+        openOnClick: false,
+        autolink: true,
+        linkOnPaste: true,
+        defaultProtocol: "https",
+      }),
       Image.configure({ inline: false }),
       Youtube.configure({ width: 640, height: 360 }),
       Highlight,
@@ -137,9 +167,10 @@ export function NotionEditor({
       Callout,
       Placeholder.configure({
         placeholder: blockMode
-          ? "Tapez « / » pour les commandes"
+          ? "Type '/' for commands"
           : "Press 'Enter' to continue with an empty page, or type '/' for commands",
       }),
+      linkShortcutExtension,
       ...(blockEnterExtension ? [blockEnterExtension] : []),
       ...(blockBackspaceExtension ? [blockBackspaceExtension] : []),
     ],
@@ -149,6 +180,27 @@ export function NotionEditor({
         class: blockMode
           ? "notion-editor-content notion-editor-content--block outline-none min-h-[1.5em]"
           : "notion-editor-content outline-none min-h-[200px]",
+      },
+      handleDOMEvents: {
+        dragover(_view, event) {
+          if (
+            onImageFilesDropRef.current &&
+            event.dataTransfer &&
+            dataTransferHasImages(event.dataTransfer)
+          ) {
+            event.preventDefault();
+            return true;
+          }
+          return false;
+        },
+        drop(_view, event) {
+          if (!onImageFilesDropRef.current || !event.dataTransfer) return false;
+          const files = extractImageFiles(event.dataTransfer);
+          if (files.length === 0) return false;
+          event.preventDefault();
+          onImageFilesDropRef.current(files);
+          return true;
+        },
       },
     },
     onUpdate({ editor: ed }) {
@@ -228,26 +280,25 @@ export function NotionEditor({
 
   async function uploadImage(file: File) {
     setUploadMessage(null);
-    const supabase = createSupabaseBrowserClient();
-    if (!supabase) {
-      setUploadMessage("Configure Supabase or paste a URL.");
+    const result = await uploadAdminImage(file);
+    if (!result.ok) {
+      setUploadMessage(result.error);
       return;
     }
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const path = `uploads/${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from("media").upload(path, file, { upsert: false });
-    if (error) {
-      setUploadMessage(error.message);
-      return;
-    }
-    const { data } = supabase.storage.from("media").getPublicUrl(path);
-    setMediaUrl(data.publicUrl);
+    setMediaUrl(result.url);
   }
 
   return (
     <div className="relative">
-      <EditorBubbleMenu editor={editor} blockId={blockId} />
+      <EditorBubbleMenu
+        editor={editor}
+        blockId={blockId}
+        onOpenLinkEditor={() => setLinkEditorOpen(true)}
+      />
       <EditorContent editor={editor} />
+      {linkEditorOpen && editor ? (
+        <LinkInputFloating editor={editor} onClose={() => setLinkEditorOpen(false)} />
+      ) : null}
       {!onSlashTrigger && slashQuery !== null ? (
         <SlashMenu
           ref={slashRef}

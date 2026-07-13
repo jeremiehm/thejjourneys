@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { useState, useTransition } from "react";
 import { ImageIcon } from "lucide-react";
+import { AdminImage } from "@/components/admin/admin-image";
 import {
   Dialog,
   DialogContent,
@@ -11,21 +11,21 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { uploadAdminImage } from "@/lib/admin/upload-image";
 import type { CoverType } from "@/lib/blocks/types";
 import { cn } from "@/lib/utils";
 
 const COVER_TYPE_LABELS: Record<CoverType, string> = {
-  banner: "Bannière pleine largeur",
-  above_title: "Image au-dessus du titre",
-  below_title: "Image sous le titre",
+  banner: "Full-width banner",
+  above_title: "Image above title",
+  below_title: "Image below title",
 };
 
 export function ArticleCoverAddButton({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className="notion-meta-btn">
       <ImageIcon className="h-3.5 w-3.5" />
-      Ajouter une cover
+      Add cover
     </button>
   );
 }
@@ -46,7 +46,7 @@ export function ArticleCoverDisplay({
   if (coverType === "banner") {
     return (
       <div className="group/cover relative -mx-24 mb-6 h-[260px] w-[calc(100%+12rem)] max-w-none overflow-hidden">
-        <Image src={coverUrl} alt="" fill className="object-cover" sizes="900px" priority />
+        <AdminImage src={coverUrl} alt="" fill priority />
         <CoverOverlay onEdit={onEdit} onRemove={onRemove} />
       </div>
     );
@@ -60,7 +60,7 @@ export function ArticleCoverDisplay({
       )}
     >
       <div className={cn("relative w-full", coverType === "above_title" ? "aspect-[4/3]" : "aspect-[16/10]")}>
-        <Image src={coverUrl} alt="" fill className="object-cover" sizes="560px" />
+        <AdminImage src={coverUrl} alt="" fill />
       </div>
       <CoverOverlay onEdit={onEdit} onRemove={onRemove} />
     </figure>
@@ -71,10 +71,10 @@ function CoverOverlay({ onEdit, onRemove }: { onEdit: () => void; onRemove: () =
   return (
     <div className="absolute inset-0 flex items-end justify-center gap-2 bg-black/0 pb-4 opacity-0 transition-all group-hover/cover:bg-black/20 group-hover/cover:opacity-100">
       <button type="button" onClick={onEdit} className="notion-meta-btn bg-white/90">
-        Modifier
+        Edit
       </button>
       <button type="button" onClick={onRemove} className="notion-meta-btn bg-white/90">
-        Supprimer
+        Delete
       </button>
     </div>
   );
@@ -102,20 +102,12 @@ export function ArticleCoverDialog({
   function upload(file: File) {
     startTransition(async () => {
       setMessage(null);
-      const supabase = createSupabaseBrowserClient();
-      if (!supabase) {
-        setMessage("Configurez Supabase ou utilisez un lien.");
+      const result = await uploadAdminImage(file);
+      if (!result.ok) {
+        setMessage(result.error);
         return;
       }
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `uploads/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("media").upload(path, file, { upsert: false });
-      if (error) {
-        setMessage(error.message);
-        return;
-      }
-      const { data } = supabase.storage.from("media").getPublicUrl(path);
-      setDraftUrl(data.publicUrl);
+      setDraftUrl(result.url);
     });
   }
 
@@ -133,11 +125,11 @@ export function ArticleCoverDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Image de couverture</DialogTitle>
+          <DialogTitle>Cover image</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <p className="text-sm font-medium text-stone-700 dark:text-stone-300">Type d&apos;affichage</p>
+            <p className="text-sm font-medium text-stone-700 dark:text-stone-300">Display type</p>
             <div className="grid gap-2">
               {(Object.keys(COVER_TYPE_LABELS) as CoverType[]).map((type) => (
                 <label
@@ -167,7 +159,7 @@ export function ArticleCoverDialog({
                 Upload
               </TabsTrigger>
               <TabsTrigger value="link" className="flex-1">
-                Lien
+                Link
               </TabsTrigger>
             </TabsList>
             <TabsContent value="upload" className="space-y-3 pt-2">
@@ -181,12 +173,12 @@ export function ArticleCoverDialog({
                     if (file) upload(file);
                   }}
                 />
-                Glisser-déposer ou parcourir
+                Drag and drop or browse
               </label>
-              {isPending ? <p className="text-xs text-stone-500">Envoi en cours…</p> : null}
+              {isPending ? <p className="text-xs text-stone-500">Uploading…</p> : null}
               {message ? <p className="text-xs text-red-600">{message}</p> : null}
               {draftUrl ? (
-                <p className="truncate text-xs text-stone-500">Image sélectionnée</p>
+                <p className="truncate text-xs text-stone-500">Image selected</p>
               ) : null}
             </TabsContent>
             <TabsContent value="link" className="space-y-2 pt-2">
@@ -200,7 +192,7 @@ export function ArticleCoverDialog({
                 className="text-sm text-stone-600 underline dark:text-stone-400"
                 onClick={() => linkUrl.trim() && setDraftUrl(linkUrl.trim())}
               >
-                Utiliser ce lien
+                Use this link
               </button>
             </TabsContent>
           </Tabs>
@@ -213,7 +205,7 @@ export function ArticleCoverDialog({
               onOpenChange(false);
             }}
           >
-            Appliquer
+            Apply
           </button>
         </div>
       </DialogContent>

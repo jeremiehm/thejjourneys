@@ -13,7 +13,6 @@ export type ArticleRevision = {
   created_at: string;
 };
 
-const AUTOSAVE_REVISION_INTERVAL_MS = 3 * 60 * 1000;
 const MAX_REVISIONS_PER_ARTICLE = 50;
 
 export async function createArticleRevision(
@@ -25,35 +24,24 @@ export async function createArticleRevision(
     content: ArticleBlock[];
   },
   label: string,
-  options?: { throttleAutosave?: boolean },
-): Promise<void> {
+): Promise<string | null> {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return;
+  if (!supabase) return null;
 
-  if (options?.throttleAutosave && label === "Autosave") {
-    const { data: last } = await supabase
-      .from("article_revisions")
-      .select("created_at")
-      .eq("article_id", articleId)
-      .eq("label", "Autosave")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  const { data: inserted, error } = await supabase
+    .from("article_revisions")
+    .insert({
+      article_id: articleId,
+      title: snapshot.title,
+      excerpt: snapshot.excerpt,
+      meta_description: snapshot.meta_description,
+      content: snapshot.content as unknown as Json,
+      label,
+    })
+    .select("id")
+    .single();
 
-    if (last?.created_at) {
-      const elapsed = Date.now() - new Date(last.created_at).getTime();
-      if (elapsed < AUTOSAVE_REVISION_INTERVAL_MS) return;
-    }
-  }
-
-  await supabase.from("article_revisions").insert({
-    article_id: articleId,
-    title: snapshot.title,
-    excerpt: snapshot.excerpt,
-    meta_description: snapshot.meta_description,
-    content: snapshot.content as unknown as Json,
-    label,
-  });
+  if (error || !inserted) return null;
 
   const { data: oldRevisions } = await supabase
     .from("article_revisions")
@@ -71,6 +59,8 @@ export async function createArticleRevision(
         oldRevisions.map((r) => r.id),
       );
   }
+
+  return inserted.id;
 }
 
 export async function getArticleRevisions(articleId: string): Promise<ArticleRevision[]> {
@@ -82,7 +72,7 @@ export async function getArticleRevisions(articleId: string): Promise<ArticleRev
     .select("*")
     .eq("article_id", articleId)
     .order("created_at", { ascending: false })
-    .limit(30);
+    .limit(50);
 
   return (data ?? []).map((row) => ({
     ...row,

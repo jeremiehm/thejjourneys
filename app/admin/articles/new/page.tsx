@@ -1,11 +1,13 @@
 import { NotionArticlePage } from "@/components/admin/NotionArticlePage";
+import { getAiAgents } from "@/lib/ai/agents";
 import { getArticles, getAuthors, getCollections } from "@/lib/data";
 
 export default async function NewArticlePage() {
-  const [collections, authors, allArticles] = await Promise.all([
+  const [collections, authors, allArticles, agents] = await Promise.all([
     getCollections({ includeDrafts: true }),
     getAuthors(),
     getArticles({ includeDrafts: true }),
+    getAiAgents(),
   ]);
 
   const siblingArticles = allArticles
@@ -18,6 +20,6 @@ export default async function NewArticlePage() {
     }));
 
   return (
-    <NotionArticlePage collections={collections} authors={authors} siblingArticles={siblingArticles} revisions={[]} />
+    <NotionArticlePage collections={collections} authors={authors} siblingArticles={siblingArticles} revisions={[]} agents={agents} />
   );
 }

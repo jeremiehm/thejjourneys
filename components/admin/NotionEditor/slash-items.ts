@@ -3,32 +3,32 @@ export type SlashItem = {
   title: string;
   description: string;
   icon: string;
-  group: "texte" | "listes" | "medias" | "speciaux";
+  group: "text" | "lists" | "media" | "special";
   keywords?: string[];
 };
 
 export const SLASH_ITEMS: SlashItem[] = [
-  { id: "paragraph", title: "Texte", description: "Paragraphe", icon: "📄", group: "texte", keywords: ["text", "p"] },
-  { id: "h1", title: "Titre 1", description: "Grand titre", icon: "H1", group: "texte" },
-  { id: "h2", title: "Titre 2", description: "Titre moyen", icon: "H2", group: "texte" },
-  { id: "h3", title: "Titre 3", description: "Petit titre", icon: "H3", group: "texte" },
-  { id: "quote", title: "Citation", description: "Citation", icon: "❝", group: "texte" },
-  { id: "divider", title: "Séparateur", description: "Ligne horizontale", icon: "─", group: "texte" },
-  { id: "bullet", title: "Puces", description: "Liste à puces", icon: "•", group: "listes" },
-  { id: "ordered", title: "Numérotée", description: "Liste numérotée", icon: "1.", group: "listes" },
-  { id: "task", title: "Cases", description: "Liste de tâches", icon: "☐", group: "listes" },
-  { id: "image", title: "Image", description: "Upload ou URL", icon: "🖼", group: "medias" },
-  { id: "video", title: "Vidéo", description: "YouTube ou Vimeo", icon: "▶", group: "medias" },
-  { id: "code", title: "Code", description: "Bloc de code", icon: "{}", group: "speciaux" },
-  { id: "callout", title: "Note", description: "Encadré mis en avant", icon: "💡", group: "speciaux" },
-  { id: "alert", title: "Alerte", description: "Message d'alerte", icon: "⚠", group: "speciaux" },
+  { id: "paragraph", title: "Text", description: "Paragraph", icon: "📄", group: "text", keywords: ["text", "p"] },
+  { id: "h1", title: "Heading 1", description: "Large heading", icon: "H1", group: "text" },
+  { id: "h2", title: "Heading 2", description: "Medium heading", icon: "H2", group: "text" },
+  { id: "h3", title: "Heading 3", description: "Small heading", icon: "H3", group: "text" },
+  { id: "quote", title: "Quote", description: "Quote block", icon: "❝", group: "text" },
+  { id: "divider", title: "Divider", description: "Horizontal line", icon: "─", group: "text" },
+  { id: "bullet", title: "Bulleted list", description: "Bullet list", icon: "•", group: "lists" },
+  { id: "ordered", title: "Numbered list", description: "Numbered list", icon: "1.", group: "lists" },
+  { id: "task", title: "To-do list", description: "Checklist", icon: "☐", group: "lists" },
+  { id: "image", title: "Image", description: "Upload or URL", icon: "🖼", group: "media" },
+  { id: "video", title: "Video", description: "YouTube or Vimeo", icon: "▶", group: "media" },
+  { id: "code", title: "Code", description: "Code block", icon: "{}", group: "special" },
+  { id: "callout", title: "Callout", description: "Highlighted note", icon: "💡", group: "special" },
+  { id: "alert", title: "Alert", description: "Alert message", icon: "⚠", group: "special" },
 ];
 
 const GROUP_LABELS: Record<SlashItem["group"], string> = {
-  texte: "TEXTE",
-  listes: "LISTES",
-  medias: "MÉDIAS",
-  speciaux: "SPÉCIAUX",
+  text: "TEXT",
+  lists: "LISTS",
+  media: "MEDIA",
+  special: "SPECIAL",
 };
 
 export function filterSlashItems(query: string): SlashItem[] {
@@ -43,7 +43,7 @@ export function filterSlashItems(query: string): SlashItem[] {
 }
 
 export function groupSlashItems(items: SlashItem[]) {
-  const groups = ["texte", "listes", "medias", "speciaux"] as const;
+  const groups = ["text", "lists", "media", "special"] as const;
   return groups
     .map((group) => ({
       label: GROUP_LABELS[group],

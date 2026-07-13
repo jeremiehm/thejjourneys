@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { useState, useTransition } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { AdminImage } from "@/components/admin/admin-image";
+import { uploadAdminImage } from "@/lib/admin/upload-image";
 import { adminFieldInputClass, adminFieldLabelClass } from "@/components/admin/form-fields";
 import { cn } from "@/lib/utils";
 
@@ -22,21 +22,12 @@ export function ImageUploadField({ name, label, defaultValue }: ImageUploadField
   function upload(file: File) {
     startTransition(async () => {
       setMessage(null);
-      const supabase = createSupabaseBrowserClient();
-      if (!supabase) {
-        setMessage("Configure Supabase to upload images, or paste a URL.");
+      const result = await uploadAdminImage(file);
+      if (!result.ok) {
+        setMessage(result.error);
         return;
       }
-
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `uploads/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("media").upload(path, file, { upsert: false });
-      if (error) {
-        setMessage(error.message);
-        return;
-      }
-      const { data } = supabase.storage.from("media").getPublicUrl(path);
-      setValue(data.publicUrl);
+      setValue(result.url);
       setMessage("Image uploaded.");
     });
   }
@@ -58,10 +49,12 @@ export function ImageUploadField({ name, label, defaultValue }: ImageUploadField
         className="block w-full text-sm text-stone-500 file:mr-3 file:rounded-lg file:border-0 file:bg-stone-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-stone-700"
       />
       {isPending ? <p className="text-xs text-stone-500">Uploading...</p> : null}
-      {message ? <p className="text-xs text-stone-500">{message}</p> : null}
+      {message ? (
+        <p className={cn("text-xs", message === "Image uploaded." ? "text-stone-500" : "text-red-600")}>{message}</p>
+      ) : null}
       {value ? (
         <div className="relative mt-2 aspect-[16/9] max-w-md overflow-hidden rounded-xl border border-stone-200 bg-stone-100">
-          <Image src={value} alt="Cover preview" fill className="object-cover" sizes="400px" />
+          <AdminImage src={value} alt="Cover preview" fill />
         </div>
       ) : (
         <div

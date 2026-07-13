@@ -30,7 +30,7 @@ export function ArticleForm({ article, collections, authors, breadcrumbs }: Arti
   const [status, setStatus] = useState<"draft" | "published">(article?.status ?? "draft");
 
   function handleSubmit() {
-    sessionStorage.setItem("admin-toast", article?.id ? "Article mis à jour" : "Article enregistré");
+    sessionStorage.setItem("admin-toast", article?.id ? "Article updated" : "Article saved");
   }
 
   return (
@@ -42,7 +42,7 @@ export function ArticleForm({ article, collections, authors, breadcrumbs }: Arti
         actions={
           <>
             <Button type="submit" name="intent" value="save" variant="outline" className="rounded-xl">
-              Enregistrer le brouillon
+              Save draft
             </Button>
             <Button
               type="submit"
@@ -50,7 +50,7 @@ export function ArticleForm({ article, collections, authors, breadcrumbs }: Arti
               value="publish"
               className="rounded-xl bg-amber-500 text-stone-950 hover:bg-amber-400"
             >
-              Publier
+              Publish
             </Button>
           </>
         }
@@ -102,11 +102,11 @@ export function ArticleForm({ article, collections, authors, breadcrumbs }: Arti
           defaultValue={article?.published_at ? article.published_at.slice(0, 16) : ""}
         />
         <AdminField
-          label="Ordre dans la collection"
+          label="Order in collection"
           name="position"
           type="number"
           defaultValue={article?.position ?? 0}
-          tooltip="Les numéros les plus bas apparaissent en premier dans la collection."
+          tooltip="Lower numbers appear first in the collection."
         />
       </div>
 

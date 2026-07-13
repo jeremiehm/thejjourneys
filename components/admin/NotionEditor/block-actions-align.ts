@@ -72,7 +72,7 @@ export function measureBlockActionsAlign(
 
       const lineTarget =
         firstBlock.tagName === "UL" || firstBlock.tagName === "OL"
-          ? (firstBlock.querySelector("li") ?? firstBlock)
+          ? (firstBlock.querySelector("li > p, li:first-child") ?? firstBlock)
           : firstBlock;
       const line = firstLineRectFromElement(lineTarget);
       if (line) {

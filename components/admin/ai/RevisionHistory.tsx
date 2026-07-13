@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { restoreArticleRevision } from "@/app/admin/actions";
+import { revisionBlockCount } from "@/lib/article-revision-utils";
 import type { ArticleRevision } from "@/lib/article-revisions";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type RevisionHistoryProps = {
   articleId: string;
@@ -21,15 +23,19 @@ export function RevisionHistory({ articleId, revisions, onRestored }: RevisionHi
   }, [revisions]);
 
   if (!articleId) {
-    return <p className="text-sm text-stone-500">Enregistrez l&apos;article pour activer l&apos;historique.</p>;
+    return <p className="text-sm text-stone-500">Save the article to enable revision history.</p>;
   }
 
   if (items.length === 0) {
-    return <p className="text-sm text-stone-500">Aucune révision pour le moment.</p>;
+    return (
+      <p className="text-sm text-stone-500">
+        A version is saved on every autosave, publish, and AI action.
+      </p>
+    );
   }
 
   const handleRestore = (revisionId: string) => {
-    if (!confirm("Restaurer cette version ? L'état actuel sera sauvegardé avant.")) return;
+    if (!confirm("Restore this version? The current state will be saved first.")) return;
     startTransition(async () => {
       const result = await restoreArticleRevision(revisionId);
       if (result.ok) {
@@ -42,10 +48,20 @@ export function RevisionHistory({ articleId, revisions, onRestored }: RevisionHi
   return (
     <ul className="space-y-2">
       {items.map((rev) => (
-        <li key={rev.id} className="flex items-center justify-between gap-2 rounded-lg border border-stone-200 px-3 py-2">
+        <li
+          key={rev.id}
+          className={cn(
+            "flex items-center justify-between gap-2 rounded-lg border px-3 py-2",
+            rev.label === "Before SEO enhance"
+              ? "border-amber-300 bg-amber-50/80"
+              : "border-stone-200",
+          )}
+        >
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-stone-800">{rev.label ?? "Révision"}</p>
-            <p className="text-xs text-stone-500">{formatDate(rev.created_at)}</p>
+            <p className="truncate text-sm font-medium text-stone-800">{rev.label ?? "Revision"}</p>
+            <p className="text-xs text-stone-500">
+              {formatDate(rev.created_at)} · {revisionBlockCount(rev)} blocks
+            </p>
           </div>
           <Button
             type="button"
@@ -54,7 +70,7 @@ export function RevisionHistory({ articleId, revisions, onRestored }: RevisionHi
             disabled={pending}
             onClick={() => handleRestore(rev.id)}
           >
-            Restaurer
+            Restore
           </Button>
         </li>
       ))}

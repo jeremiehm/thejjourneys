@@ -161,8 +161,8 @@ export const articleBlockLabels: Record<ArticleBlock["type"], string> = {
   quote: "Quote",
   image: "Image",
   divider: "Divider",
-  columns: "Colonnes",
-  row: "Rangée",
+  columns: "Columns",
+  row: "Row",
 };
 
 export const layoutBlockLabels: Record<LayoutBlock["type"], string> = {

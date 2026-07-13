@@ -19,7 +19,7 @@ export default async function AdminCollectionsPage() {
             href="/admin/collections/new"
             className="inline-flex h-9 items-center rounded-xl bg-amber-500 px-4 text-sm font-semibold text-stone-950 transition hover:bg-amber-400"
           >
-            Nouvelle collection
+            New collection
           </Link>
         }
       />
@@ -27,10 +27,10 @@ export default async function AdminCollectionsPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-stone-100 bg-stone-50/80 text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-500">
             <tr>
-              <th className="px-4 py-3">Titre</th>
+              <th className="px-4 py-3">Title</th>
               <th className="px-4 py-3">Slug</th>
               <th className="px-4 py-3">Articles</th>
-              <th className="px-4 py-3">Statut</th>
+              <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
@@ -50,7 +50,7 @@ export default async function AdminCollectionsPage() {
                     href={`/admin/collections/${collection.id}`}
                     className="font-medium text-amber-600 hover:text-amber-700"
                   >
-                    Éditer
+                    Edit
                   </Link>
                   <DeleteCollectionButton id={collection.id} title={collection.title} />
                 </td>

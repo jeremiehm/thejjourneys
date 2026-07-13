@@ -1,7 +1,7 @@
 import type { ArticleBlock, RowBlock } from "@/lib/blocks/types";
 
 function tag(blockId: string) {
-  return `[bloc:${blockId}]`;
+  return `[block:${blockId}]`;
 }
 
 function serializeLeaf(block: ArticleBlock): string {
@@ -11,21 +11,21 @@ function serializeLeaf(block: ArticleBlock): string {
     case "quote":
       return `${tag(block.id)}\n> ${block.data.text}${block.data.attribution ? `\n— ${block.data.attribution}` : ""}`;
     case "tip_card":
-      return `${tag(block.id)}\n[Conseil : ${block.data.label}] ${block.data.body}`;
+      return `${tag(block.id)}\n[Tip: ${block.data.label}] ${block.data.body}`;
     case "image":
-      return `${tag(block.id)}\n[Image${block.data.caption ? ` : ${block.data.caption}` : ""}]`;
+      return `${tag(block.id)}\n[Image${block.data.caption ? `: ${block.data.caption}` : ""}]`;
     case "divider":
       return `${tag(block.id)}\n---${block.data.label ? ` ${block.data.label}` : ""}`;
     case "gallery":
-      return `${tag(block.id)}\n[Galerie : ${block.data.images.length} photo(s)]`;
+      return `${tag(block.id)}\n[Gallery: ${block.data.images.length} photo(s)]`;
     case "map":
-      return `${tag(block.id)}\n[Carte : ${block.data.query}]`;
+      return `${tag(block.id)}\n[Map: ${block.data.query}]`;
     case "video":
-      return `${tag(block.id)}\n[Vidéo${block.data.title ? ` : ${block.data.title}` : ""}]`;
+      return `${tag(block.id)}\n[Video${block.data.title ? `: ${block.data.title}` : ""}]`;
     case "timeline":
-      return `${tag(block.id)}\n${block.data.items.map((i) => `- ${i.label} : ${i.title} — ${i.text}`).join("\n")}`;
+      return `${tag(block.id)}\n${block.data.items.map((i) => `- ${i.label}: ${i.title} — ${i.text}`).join("\n")}`;
     case "affiliate":
-      return `${tag(block.id)}\n[Lien affilié : ${block.data.title}]`;
+      return `${tag(block.id)}\n[Affiliate link: ${block.data.title}]`;
     default:
       return "";
   }

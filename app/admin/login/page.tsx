@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { LoginForm } from "@/components/admin/login-form";
 
-export const metadata: Metadata = { title: "Connexion admin" };
+export const metadata: Metadata = { title: "Admin login" };
 
 export default function LoginPage() {
   return (

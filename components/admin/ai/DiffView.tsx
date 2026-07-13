@@ -27,20 +27,20 @@ export function DiffView({
       {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
       <div className="grid gap-3">
         <div>
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-stone-500">Avant</p>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-stone-500">Before</p>
           <div className="max-h-40 overflow-y-auto rounded-lg border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 whitespace-pre-wrap">
             {original}
           </div>
         </div>
         <div>
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-amber-600">Après</p>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-amber-600">After</p>
           <div
             className={cn(
               "max-h-48 overflow-y-auto rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-sm text-stone-800 whitespace-pre-wrap",
               streaming && "animate-pulse",
             )}
           >
-            {proposed || (streaming ? "Génération en cours…" : "—")}
+            {proposed || (streaming ? "Generating…" : "—")}
           </div>
         </div>
       </div>
@@ -52,13 +52,13 @@ export function DiffView({
           disabled={streaming || !proposed.trim()}
           onClick={onAccept}
         >
-          Accepter
+          Accept
         </Button>
         <Button type="button" size="sm" variant="outline" onClick={onReject}>
-          Rejeter
+          Reject
         </Button>
         <Button type="button" size="sm" variant="outline" disabled={streaming} onClick={onRegenerate}>
-          Régénérer
+          Regenerate
         </Button>
       </div>
     </div>

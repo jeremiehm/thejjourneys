@@ -20,6 +20,7 @@ import { InlineAiMenu } from "@/components/admin/ai/InlineAiMenu";
 type EditorBubbleMenuProps = {
   editor: Editor | null;
   blockId?: string;
+  onOpenLinkEditor?: () => void;
 };
 
 function MenuBtn({
@@ -48,7 +49,7 @@ function MenuBtn({
   );
 }
 
-export function EditorBubbleMenu({ editor, blockId }: EditorBubbleMenuProps) {
+export function EditorBubbleMenu({ editor, blockId, onOpenLinkEditor }: EditorBubbleMenuProps) {
   if (!editor) return null;
 
   return (
@@ -87,16 +88,7 @@ export function EditorBubbleMenu({ editor, blockId }: EditorBubbleMenuProps) {
       <MenuBtn
         label="Link"
         active={editor.isActive("link")}
-        onClick={() => {
-          const previous = editor.getAttributes("link").href as string | undefined;
-          const url = window.prompt("URL", previous ?? "https://");
-          if (url === null) return;
-          if (url === "") {
-            editor.chain().focus().extendMarkRange("link").unsetLink().run();
-            return;
-          }
-          editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
-        }}
+        onClick={() => onOpenLinkEditor?.()}
       >
         <Link2 className="h-4 w-4" />
       </MenuBtn>
@@ -111,7 +103,7 @@ export function EditorBubbleMenu({ editor, blockId }: EditorBubbleMenuProps) {
         <Heading3 className="h-4 w-4" />
       </MenuBtn>
       <MenuBtn
-        label="Liste à puces"
+        label="Bulleted list"
         active={editor.isActive("bulletList")}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
       >

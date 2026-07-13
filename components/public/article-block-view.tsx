@@ -28,6 +28,7 @@ function ColumnContentView({ block }: { block: ColumnContentBlock }) {
         </div>
       );
     case "image": {
+      if (!block.data.url?.trim()) return null;
       const width = block.data.widthPercent ?? 100;
       return (
         <figure className="space-y-2" style={{ width: `${width}%`, maxWidth: "100%" }}>
@@ -100,7 +101,9 @@ export function ArticleBlockView({ block }: { block: ArticleBlock }) {
       case "gallery":
         return (
           <div className="grid gap-4 sm:grid-cols-2">
-            {block.data.images.map((image) => (
+            {block.data.images
+              .filter((image) => image.url?.trim())
+              .map((image) => (
               <figure key={`${block.id}-${image.url}`} className="space-y-2">
                 <div className="relative aspect-[4/3] overflow-hidden rounded-3xl">
                   <AppImage src={image.url} alt={image.alt ?? image.caption ?? "Gallery photo"} />
@@ -183,6 +186,7 @@ export function ArticleBlockView({ block }: { block: ArticleBlock }) {
           </blockquote>
         );
       case "image": {
+        if (!block.data.url?.trim()) return null;
         const width = block.data.widthPercent ?? 100;
         return (
           <figure className="mx-auto space-y-3" style={{ width: `${width}%`, maxWidth: "100%" }}>

@@ -95,7 +95,7 @@ export function FlexRowWrapper({ row, onFlexChange, children }: FlexRowWrapperPr
               <div className="absolute top-0 bottom-0 w-px bg-black/[0.08]" />
               <button
                 type="button"
-                aria-label="Redimensionner les colonnes"
+                aria-label="Resize columns"
                 className="relative z-10 h-2 w-2 cursor-col-resize rounded-full bg-stone-400 shadow-sm"
                 onPointerDown={(e) => {
                   e.preventDefault();

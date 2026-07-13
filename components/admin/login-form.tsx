@@ -20,7 +20,7 @@ export function LoginForm() {
       setError(null);
       const supabase = createSupabaseBrowserClient();
       if (!supabase) {
-        setError("Les variables Supabase ne sont pas encore configurées.");
+        setError("Supabase environment variables are not configured yet.");
         return;
       }
       const email = String(formData.get("email") ?? "");
@@ -42,8 +42,8 @@ export function LoginForm() {
           <Globe2 className="size-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold text-stone-950">Connexion admin</h1>
-          <p className="text-sm text-stone-500">Accès réservé à Jéremie et Julie.</p>
+          <h1 className="text-2xl font-semibold text-stone-950">Admin login</h1>
+          <p className="text-sm text-stone-500">Access for Jeremie and Julie.</p>
         </div>
       </div>
       <div className="space-y-2">
@@ -54,7 +54,7 @@ export function LoginForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="password" className={adminFieldLabelClass}>
-          Mot de passe
+          Password
         </Label>
         <Input id="password" name="password" type="password" required className={adminFieldInputClass} />
       </div>
@@ -63,7 +63,7 @@ export function LoginForm() {
         disabled={isPending}
         className="h-11 w-full rounded-xl bg-amber-500 text-stone-950 hover:bg-amber-400"
       >
-        {isPending ? "Connexion..." : "Se connecter"}
+        {isPending ? "Signing in…" : "Sign in"}
       </Button>
     </form>
   );

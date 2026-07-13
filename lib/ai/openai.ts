@@ -7,7 +7,7 @@ export function getOpenAiModel(): string {
 
 export function requireOpenAiApiKey(): string {
   const key = process.env.OPENAI_API_KEY;
-  if (!key) throw new Error("OPENAI_API_KEY non configurée.");
+  if (!key) throw new Error("OPENAI_API_KEY is not configured.");
   return key;
 }
 
@@ -15,6 +15,17 @@ type MessageOptions = {
   system: string;
   userMessage: string;
   maxTokens?: number;
+};
+
+type ChatMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
+type ChatOptions = {
+  messages: ChatMessage[];
+  maxTokens?: number;
+  jsonMode?: boolean;
 };
 
 /** Stream text deltas from OpenAI Chat Completions API as a ReadableStream. */
@@ -55,7 +66,7 @@ export function streamOpenAiMessage(options: MessageOptions): ReadableStream<Uin
         }
 
         if (!response.body) {
-          controller.enqueue(encoder.encode("[ERROR] Réponse vide de l'API."));
+          controller.enqueue(encoder.encode("[ERROR] Empty API response."));
           controller.close();
           return;
         }
@@ -88,7 +99,7 @@ export function streamOpenAiMessage(options: MessageOptions): ReadableStream<Uin
         }
         controller.close();
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Erreur API";
+        const message = error instanceof Error ? error.message : "API error";
         controller.enqueue(encoder.encode(`[ERROR] ${message}`));
         controller.close();
       } finally {
@@ -99,27 +110,37 @@ export function streamOpenAiMessage(options: MessageOptions): ReadableStream<Uin
 }
 
 export async function fetchOpenAiJson(options: MessageOptions): Promise<string> {
+  return fetchOpenAiChatJson({
+    messages: [
+      { role: "system", content: options.system },
+      { role: "user", content: options.userMessage },
+    ],
+    maxTokens: options.maxTokens,
+    jsonMode: true,
+  });
+}
+
+export async function fetchOpenAiChatJson(options: ChatOptions): Promise<string> {
   const apiKey = requireOpenAiApiKey();
   const model = getOpenAiModel();
   const abort = new AbortController();
   const timeout = setTimeout(() => abort.abort(), 120_000);
 
   try {
+    const body: Record<string, unknown> = {
+      model,
+      max_tokens: options.maxTokens ?? 8192,
+      messages: options.messages,
+    };
+    if (options.jsonMode) body.response_format = { type: "json_object" };
+
     const response = await fetch(OPENAI_API_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model,
-        max_tokens: options.maxTokens ?? 8192,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: options.system },
-          { role: "user", content: options.userMessage },
-        ],
-      }),
+      body: JSON.stringify(body),
       signal: abort.signal,
     });
 

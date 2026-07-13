@@ -46,7 +46,7 @@ export function TitleInput({ value, onChange, onEnter, onArrowDown, className }:
       }}
       placeholder="Untitled"
       className={cn(
-        "notion-title w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-[2.75rem] font-bold leading-tight text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100 dark:placeholder:text-stone-600",
+        "notion-title w-full resize-none overflow-hidden border-0 bg-transparent p-0 font-sans text-[2.75rem] font-bold leading-tight text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100 dark:placeholder:text-stone-600",
         className,
       )}
     />

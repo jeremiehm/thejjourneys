@@ -173,13 +173,13 @@ export function AdminNativeSelect({
 export function StatusBadge({ status }: { status: "draft" | "published" | string }) {
   if (status === "published") {
     return (
-      <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Publié</Badge>
+      <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Published</Badge>
     );
   }
   if (status === "archived") {
     return <Badge className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-50">Archived</Badge>;
   }
-    return <Badge variant="secondary" className="bg-stone-100 text-stone-600 hover:bg-stone-100">Brouillon</Badge>;
+    return <Badge variant="secondary" className="bg-stone-100 text-stone-600 hover:bg-stone-100">Draft</Badge>;
 }
 
 export function AdminStatusSelect({
