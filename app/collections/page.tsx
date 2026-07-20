@@ -4,7 +4,7 @@ import { SiteFooter } from "@/components/public/site-footer";
 import { SiteHeader } from "@/components/public/site-header";
 import { getArticles, getCollections } from "@/lib/data";
 
-export const metadata: Metadata = { title: "Collections", description: "All journeys published by JJourneys." };
+export const metadata: Metadata = { title: "Collections", description: "All journeys published on Dot On The Map." };
 
 export default async function CollectionsPage() {
   const [collections, articles] = await Promise.all([getCollections(), getArticles()]);

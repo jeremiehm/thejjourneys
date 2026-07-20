@@ -8,13 +8,6 @@ export const demoAuthors: Author[] = [
     avatar_url: null,
     bio: "Curious photographer, always looking for good coffee and beautiful light.",
   },
-  {
-    id: "author-julie",
-    name: "Julie",
-    slug: "julie",
-    avatar_url: null,
-    bio: "Explorer of markets, side streets, and simple places worth sharing.",
-  },
 ];
 
 export const demoCollections: Collection[] = [
@@ -33,7 +26,7 @@ export const demoCollections: Collection[] = [
         type: "hero",
         data: {
           title: "Northern Vietnam",
-          subtitle: "Our itinerary through Hanoi, Ninh Binh, Ha Long, and Sapa.",
+          subtitle: "An itinerary through Hanoi, Ninh Binh, Ha Long, and Sapa.",
           imageUrl: "https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1600&q=80",
           align: "center",
         },
@@ -66,10 +59,10 @@ const rawDemoArticles: Omit<Article, "author" | "collection">[] = [
   {
     id: "article-hanoi",
     collection_id: "collection-vietnam",
-    author_id: "author-julie",
+    author_id: "author-jeremie",
     title: "48 hours in Hanoi",
     slug: "48-hours-in-hanoi",
-    excerpt: "Our first impressions, the old quarter lanes, and the best bowls of pho of the trip.",
+    excerpt: "First impressions, the old quarter lanes, and the best bowls of pho of the trip.",
     meta_description: null,
     lang: "en",
     cover_image_url: "https://images.unsplash.com/photo-1509030450996-dd1a26dda07a?auto=format&fit=crop&w=1600&q=80",
@@ -103,13 +96,13 @@ const rawDemoArticles: Omit<Article, "author" | "collection">[] = [
     updated_at: "2026-01-18T08:00:00.000Z",
     content: [
       { id: "sapa-text-1", type: "text", data: { markdown: "## Gaining altitude\n\nThe train leaves Hanoi late at night. By morning, the air is cooler and the landscapes feel vertiginous." } },
-      { id: "sapa-quote", type: "quote", data: { text: "The mist turns every bend into a postcard.", attribution: "Julie" } },
+      { id: "sapa-quote", type: "quote", data: { text: "The mist turns every bend into a postcard.", attribution: "Jeremie" } },
     ],
   },
   {
     id: "article-lisbonne",
     collection_id: "collection-portugal",
-    author_id: "author-julie",
+    author_id: "author-jeremie",
     title: "Lisbon by tram and viewpoints",
     slug: "lisbon-trams-viewpoints",
     excerpt: "A day of climbing, descending, eating pasteis, and watching the Tagus.",

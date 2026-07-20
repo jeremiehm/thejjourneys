@@ -8,11 +8,11 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: { default: "JJourneys", template: "%s | JJourneys" },
-  description: "Immersive travel journals by Jeremie & Julie.",
+  title: { default: "Dot On The Map", template: "%s | Dot On The Map" },
+  description: "Travel journals, itineraries, and photos by Jeremie.",
   openGraph: {
-    title: "JJourneys",
-    description: "Immersive travel journals by Jeremie & Julie.",
+    title: "Dot On The Map",
+    description: "Travel journals, itineraries, and photos by Jeremie.",
     type: "website",
     url: siteUrl,
   },

@@ -43,7 +43,7 @@ export function LoginForm() {
         </div>
         <div>
           <h1 className="text-2xl font-semibold text-stone-950">Admin login</h1>
-          <p className="text-sm text-stone-500">Access for Jeremie and Julie.</p>
+          <p className="text-sm text-stone-500">Access for Jeremie.</p>
         </div>
       </div>
       <div className="space-y-2">

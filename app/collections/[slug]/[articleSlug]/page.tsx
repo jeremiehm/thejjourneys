@@ -54,7 +54,7 @@ export default async function ArticlePage({ params }: PageProps) {
               {article.title}
             </h1>
             <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-stone-600">
-              <span>{article.author?.name ?? "JJourneys"}</span>
+              <span>{article.author?.name ?? "Dot On The Map"}</span>
               {article.published_at ? (
                 <>
                   <span>•</span>

@@ -1,4 +1,4 @@
-# JJourneys — Knowledge Base
+# Dot On The Map — Knowledge Base
 
 Internal documentation for AI assistants (Claude, Cursor agents) working on this codebase.
 
