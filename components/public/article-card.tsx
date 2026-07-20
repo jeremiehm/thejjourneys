@@ -18,7 +18,7 @@ export function ArticleCard({ article }: { article: Article }) {
         </div>
         <div className="space-y-3 p-5">
           <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-stone-500">
-            <span>{article.author?.name ?? "TheJJourneys"}</span>
+            <span>{article.author?.name ?? "JJourneys"}</span>
             <span>•</span>
             <time>{formatDate(article.published_at)}</time>
           </div>

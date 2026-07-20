@@ -8,7 +8,7 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/85 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <Link href="/" className="text-lg font-semibold tracking-tight text-stone-950">
-          TheJJourneys
+          JJourneys
         </Link>
         <nav className="flex items-center gap-5 text-sm font-medium text-stone-600">
           <Link href="/collections" className="hover:text-stone-950">Collections</Link>

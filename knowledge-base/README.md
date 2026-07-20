@@ -1,4 +1,4 @@
-# TheJJourneys — Knowledge Base
+# JJourneys — Knowledge Base
 
 Internal documentation for AI assistants (Claude, Cursor agents) working on this codebase.
 

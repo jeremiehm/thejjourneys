@@ -19,7 +19,7 @@ export default async function Home() {
           <div className="flex flex-col justify-center">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-700">Travel blog by Jeremie & Julie</p>
             <h1 className="mt-5 text-5xl font-semibold tracking-tight text-stone-950 sm:text-7xl">Vivid, beautiful travel journals that are easy to explore.</h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-stone-600">TheJJourneys gathers our itineraries, photos, tips, and stories into immersive collections.</p>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-stone-600">JJourneys gathers our itineraries, photos, tips, and stories into immersive collections.</p>
             <div className="mt-8 flex flex-wrap gap-3"><Link href="/collections" className="rounded-full bg-stone-950 px-6 py-3 font-semibold text-white">Explore collections</Link><Link href="/about" className="rounded-full border border-stone-300 px-6 py-3 font-semibold text-stone-900">Get to know us</Link></div>
           </div>
           {featured && featured.collection ? <Link href={`/collections/${featured.collection.slug}/${featured.slug}`} className="group relative min-h-[520px] overflow-hidden rounded-[2.5rem] bg-stone-950 text-white shadow-2xl"><AppImage src={getArticleCoverUrl(featured)} alt={featured.title} priority /><div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/20 to-transparent" /><div className="absolute bottom-0 p-8"><p className="text-sm uppercase tracking-[0.3em] text-amber-100">Featured article</p><h2 className="mt-3 text-4xl font-semibold">{featured.title}</h2><p className="mt-3 max-w-lg text-stone-100">{featured.excerpt}</p></div></Link> : null}

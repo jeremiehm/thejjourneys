@@ -40,7 +40,7 @@ export function AdminNav({ userEmail }: AdminNavProps) {
           <Globe2 className="size-5" />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-white">TheJJourneys</p>
+          <p className="truncate text-sm font-semibold text-white">JJourneys</p>
           <p className="text-[11px] text-stone-500">Admin CMS</p>
         </div>
       </div>
