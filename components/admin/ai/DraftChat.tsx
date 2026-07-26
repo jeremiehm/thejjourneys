@@ -93,12 +93,13 @@ export function DraftChat() {
     <div className="flex h-full min-h-[320px] flex-col">
       {agents.length > 0 ? (
         <div className="mb-3">
-          <label className="mb-1 block text-xs font-medium text-stone-500">Agent (travel context)</label>
+          <label className="mb-1 block text-xs font-medium text-stone-500">Agent (optional)</label>
           <select
             value={selectedAgentId}
             onChange={(e) => setSelectedAgentId(e.target.value)}
             className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm dark:border-stone-700 dark:bg-stone-900"
           >
+            <option value="">No agent — free chat</option>
             {agents.map((agent) => (
               <option key={agent.id} value={agent.id}>
                 {agent.name}
@@ -109,11 +110,11 @@ export function DraftChat() {
         </div>
       ) : (
         <p className="mb-3 text-xs text-stone-400">
-          Create an agent in{" "}
+          Optional: create an agent in{" "}
           <a href="/admin/agents" className="text-amber-600 hover:underline">
             Admin → AI Agents
           </a>{" "}
-          to inject your travel context.
+          to inject travel context when you want it.
         </p>
       )}
 

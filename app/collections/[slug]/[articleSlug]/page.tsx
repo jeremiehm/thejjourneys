@@ -9,6 +9,7 @@ import { SiteHeader } from "@/components/public/site-header";
 import { getArticleBySlug, getArticleCoverUrl, getArticleNavigation } from "@/lib/data";
 import { estimateReadingTime } from "@/lib/reading-time";
 import { formatDate } from "@/lib/utils";
+import { ArticleEngagement } from "@/components/public/article-engagement";
 
 type PageProps = { params: Promise<{ slug: string; articleSlug: string }> };
 
@@ -66,6 +67,11 @@ export default async function ArticlePage({ params }: PageProps) {
               <span>•</span>
               <span>{readingTime} min read</span>
             </div>
+            <ArticleEngagement
+              articleId={article.id}
+              initialViewCount={article.view_count}
+              initialLikeCount={article.like_count}
+            />
             {article.excerpt ? (
               <p className="mt-6 max-w-3xl text-xl leading-8 text-stone-600">{article.excerpt}</p>
             ) : null}

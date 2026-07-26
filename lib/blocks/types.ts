@@ -144,6 +144,8 @@ export type Article = {
   status: "draft" | "published";
   published_at: string | null;
   position: number;
+  view_count: number;
+  like_count: number;
   created_at: string;
   updated_at: string;
   author?: Author | null;

@@ -53,6 +53,8 @@ export type Database = {
           status: "draft" | "published";
           published_at: string | null;
           position: number;
+          view_count: number;
+          like_count: number;
           created_at: string;
           updated_at: string;
         };
@@ -71,6 +73,8 @@ export type Database = {
           status?: "draft" | "published";
           published_at?: string | null;
           position?: number;
+          view_count?: number;
+          like_count?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -152,7 +156,20 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      increment_article_view: {
+        Args: { p_article_id: string };
+        Returns: number;
+      };
+      toggle_article_like: {
+        Args: { p_article_id: string; p_visitor_key: string };
+        Returns: { liked: boolean; like_count: number };
+      };
+      get_article_liked: {
+        Args: { p_article_id: string; p_visitor_key: string };
+        Returns: boolean;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

@@ -43,6 +43,8 @@ function mapArticle(row: ArticleRow): Article {
     meta_description: row.meta_description ?? null,
     lang: row.lang ?? "en",
     cover_type: row.cover_type ?? "banner",
+    view_count: row.view_count ?? 0,
+    like_count: row.like_count ?? 0,
     content: parseArticleContent(row.content),
     author: row.authors ?? null,
     collection: row.collections ? mapCollection(row.collections) : null,

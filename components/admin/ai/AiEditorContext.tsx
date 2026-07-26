@@ -124,12 +124,8 @@ type AiEditorProviderProps = {
   agents?: AiAgent[];
 };
 
-function defaultAgentId(agents: AiAgent[]): string {
-  return agents.find((a) => a.is_default)?.id ?? agents[0]?.id ?? "";
-}
-
 export function AiEditorProvider({ children, articleState, siblingArticles, agents = [] }: AiEditorProviderProps) {
-  const [selectedAgentId, setSelectedAgentId] = useState(() => defaultAgentId(agents));
+  const [selectedAgentId, setSelectedAgentId] = useState("");
   const [pendingEdit, setPendingEdit] = useState<PendingAiEdit | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);

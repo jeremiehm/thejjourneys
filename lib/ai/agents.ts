@@ -32,22 +32,15 @@ export async function getAiAgentById(id: string): Promise<AiAgent | null> {
 }
 
 export async function resolveAgentContext(agentId?: string): Promise<AgentContext | null> {
+  if (!agentId) return null;
+
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
-
-  if (agentId) {
-    const { data } = await supabase
-      .from("ai_agents")
-      .select("id, name, context, tone")
-      .eq("id", agentId)
-      .maybeSingle();
-    return data as AgentContext | null;
-  }
 
   const { data } = await supabase
     .from("ai_agents")
     .select("id, name, context, tone")
-    .eq("is_default", true)
+    .eq("id", agentId)
     .maybeSingle();
   return data as AgentContext | null;
 }

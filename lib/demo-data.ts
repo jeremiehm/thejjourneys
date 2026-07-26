@@ -70,6 +70,8 @@ const rawDemoArticles: Omit<Article, "author" | "collection">[] = [
     status: "published",
     published_at: "2026-01-12T08:00:00.000Z",
     position: 1,
+    view_count: 42,
+    like_count: 7,
     created_at: "2026-01-08T08:00:00.000Z",
     updated_at: "2026-01-12T08:00:00.000Z",
     content: [
@@ -92,6 +94,8 @@ const rawDemoArticles: Omit<Article, "author" | "collection">[] = [
     status: "published",
     published_at: "2026-01-18T08:00:00.000Z",
     position: 2,
+    view_count: 28,
+    like_count: 4,
     created_at: "2026-01-14T08:00:00.000Z",
     updated_at: "2026-01-18T08:00:00.000Z",
     content: [
@@ -113,6 +117,8 @@ const rawDemoArticles: Omit<Article, "author" | "collection">[] = [
     status: "published",
     published_at: "2026-02-10T08:00:00.000Z",
     position: 1,
+    view_count: 19,
+    like_count: 3,
     created_at: "2026-02-07T08:00:00.000Z",
     updated_at: "2026-02-10T08:00:00.000Z",
     content: [{ id: "lisbon-text", type: "text", data: { markdown: "## Alfama at sunrise\n\nThe lanes are almost empty before 9 a.m. It is the best time to hear the city wake up." } }],
