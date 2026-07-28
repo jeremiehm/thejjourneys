@@ -51,7 +51,7 @@ export default async function ArticlePage({ params }: PageProps) {
                 <ArticleCover url={coverUrl} type="above_title" title={article.title} priority />
               </div>
             ) : null}
-            <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-stone-950 sm:text-7xl">
+            <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-wide text-stone-950 sm:text-7xl">
               {article.title}
             </h1>
             <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-stone-600">

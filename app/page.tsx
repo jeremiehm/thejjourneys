@@ -18,7 +18,7 @@ export default async function Home() {
         <section className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20">
           <div className="flex flex-col justify-center">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-700">Travel blog by Jeremie</p>
-            <h1 className="mt-5 text-5xl font-semibold tracking-tight text-stone-950 sm:text-7xl">Vivid, beautiful travel journals that are easy to explore.</h1>
+            <h1 className="mt-5 text-5xl font-semibold tracking-wide text-stone-950 sm:text-7xl">Vivid, beautiful travel journals that are easy to explore.</h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-stone-600">Dot On The Map gathers my itineraries, photos, tips, and stories into immersive collections.</p>
             <div className="mt-8 flex flex-wrap gap-3"><Link href="/collections" className="rounded-full bg-stone-950 px-6 py-3 font-semibold text-white">Explore collections</Link><Link href="/about" className="rounded-full border border-stone-300 px-6 py-3 font-semibold text-stone-900">About me</Link></div>
           </div>

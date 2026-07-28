@@ -17,7 +17,7 @@ export function LayoutRenderer({ blocks, articles }: { blocks: LayoutBlock[]; ar
                 <div className="absolute inset-0 opacity-65"><AppImage src={block.data.imageUrl} alt={block.data.title} priority /></div>
                 <div className={`relative flex min-h-[420px] flex-col justify-end p-8 sm:p-12 ${block.data.align === "center" ? "items-center text-center" : "items-start"}`}>
                   <p className="text-sm uppercase tracking-[0.3em] text-amber-100">Collection</p>
-                  <h1 className="mt-4 max-w-3xl text-5xl font-semibold tracking-tight sm:text-7xl">{block.data.title}</h1>
+                  <h1 className="mt-4 max-w-3xl text-5xl font-semibold tracking-wide sm:text-7xl">{block.data.title}</h1>
                   {block.data.subtitle ? <p className="mt-5 max-w-2xl text-lg leading-8 text-stone-100">{block.data.subtitle}</p> : null}
                 </div>
               </section>

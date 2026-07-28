@@ -13,7 +13,7 @@ export default function AboutPage() {
       <SiteHeader />
       <main className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
         <p className="text-sm uppercase tracking-[0.25em] text-amber-700">About</p>
-        <h1 className="mt-3 text-5xl font-semibold tracking-tight text-stone-950">
+        <h1 className="mt-3 text-5xl font-semibold tracking-wide text-stone-950">
           One traveler, one map of places that stay with me.
         </h1>
         <div className="mt-8 space-y-6 text-lg leading-8 text-stone-600">
