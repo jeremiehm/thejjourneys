@@ -111,6 +111,58 @@ export function removeBlockAt(blocks: EditorBlock[], location: NonNullable<Retur
   return collapseRows(next);
 }
 
+/** Flatten leaf block ids in visual order (rows left→right, then next row). */
+export function listLeafBlockIds(blocks: EditorBlock[]): string[] {
+  const ids: string[] = [];
+  for (const block of blocks) {
+    if (isRowBlock(block)) {
+      for (const slot of block.data.children) ids.push(slot.block.id);
+    } else {
+      ids.push(block.id);
+    }
+  }
+  return ids;
+}
+
+/** Remove many leaf blocks; always keeps at least one leaf. */
+export function removeBlocksByIds(blocks: EditorBlock[], ids: Iterable<string>): EditorBlock[] {
+  const toRemove = new Set(ids);
+  if (toRemove.size === 0) return blocks;
+
+  let next = cloneBlocks(blocks);
+  const ordered = listLeafBlockIds(next).filter((id) => toRemove.has(id));
+  for (const id of ordered) {
+    if (countLeafBlocks(next) <= 1) break;
+    const loc = findBlockLocation(next, id);
+    if (!loc) continue;
+    next = removeBlockAt(next, loc);
+  }
+  return next;
+}
+
+/** Update a leaf block in place (immutable). */
+export function mapLeafBlock(
+  blocks: EditorBlock[],
+  id: string,
+  updater: (block: EditorLeafBlock) => EditorLeafBlock,
+): EditorBlock[] {
+  return blocks.map((block) => {
+    if (isRowBlock(block)) {
+      return {
+        ...block,
+        data: {
+          ...block.data,
+          children: block.data.children.map((slot) =>
+            slot.block.id === id ? { ...slot, block: updater(slot.block) } : slot,
+          ),
+        },
+      };
+    }
+    if (block.id === id && isLeafBlock(block)) return updater(block);
+    return block;
+  });
+}
+
 function collapseRows(blocks: EditorBlock[]): EditorBlock[] {
   return blocks.flatMap((block) => {
     if (isRowBlock(block) && block.data.children.length === 1) {

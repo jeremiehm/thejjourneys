@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Editor } from "@tiptap/core";
@@ -91,7 +91,7 @@ function ArticleEditorInner({
   metaDescription: string;
   setMetaDescription: (v: string) => void;
   blocks: ArticleBlock[];
-  setBlocks: (b: ArticleBlock[]) => void;
+  setBlocks: Dispatch<SetStateAction<ArticleBlock[]>>;
 }) {
   const ai = useAiEditor();
   const router = useRouter();

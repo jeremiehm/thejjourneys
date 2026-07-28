@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import type { Editor } from "@tiptap/core";
 import { createManualRevision, createCompanionArticles, restoreArticleRevision, restoreLatestRevisionByLabel } from "@/app/admin/actions";
 import { applyArticlePatches, validatePatches } from "@/lib/ai/apply-article-patches";
@@ -35,7 +35,7 @@ type ArticleUpdaters = {
   setTitle: (v: string) => void;
   setExcerpt: (v: string) => void;
   setMetaDescription: (v: string) => void;
-  setBlocks: (b: ArticleBlock[]) => void;
+  setBlocks: Dispatch<SetStateAction<ArticleBlock[]>>;
 };
 
 export type PublishContext = {

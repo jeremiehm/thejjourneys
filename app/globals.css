@@ -544,6 +544,22 @@ html {
   pointer-events: auto;
 }
 
+.notion-block.is-selected {
+  background: rgb(245 158 11 / 0.08);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1.5px rgb(245 158 11 / 0.45);
+}
+
+.notion-block.is-selected .block-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.notion-block .btn-drag.is-selected-handle {
+  background: rgb(245 158 11 / 0.2);
+  color: #b45309;
+}
+
 .notion-block[data-actions-align="heading"] .block-actions {
   align-items: flex-start;
   padding-top: var(--block-actions-cap-offset, 0);

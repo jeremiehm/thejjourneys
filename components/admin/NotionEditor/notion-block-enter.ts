@@ -1,8 +1,18 @@
 import { Extension, type Editor } from "@tiptap/core";
 import type { ResolvedPos } from "@tiptap/pm/model";
+import { htmlToMarkdown } from "@/lib/markdown-editor";
 import { sliceToMarkdown } from "@/components/admin/NotionEditor/slice-markdown";
 
-export type NewBlockPayload = { markdown?: string };
+export type NewBlockPayload = {
+  /** Markdown for the newly created block. */
+  markdown?: string;
+  /**
+   * Final markdown that must remain in the current TipTap block after the split.
+   * When set, the parent applies this in the same state update as the insert
+   * (avoids racing TipTap onUpdate against a stale React snapshot).
+   */
+  remainingMarkdown?: string;
+};
 
 function findListItemType($from: ResolvedPos): "listItem" | "taskItem" | null {
   for (let depth = $from.depth; depth > 0; depth -= 1) {
@@ -21,6 +31,10 @@ function isListItemEmpty($from: ResolvedPos, itemType: "listItem" | "taskItem"):
   return false;
 }
 
+function currentEditorMarkdown(editor: Editor): string {
+  return htmlToMarkdown(editor.getHTML()).trim();
+}
+
 function handleParagraphEnter(editor: Editor, onNewBlock: (payload: NewBlockPayload) => void): boolean {
   const { state } = editor;
   const { $from } = state.selection;
@@ -32,7 +46,7 @@ function handleParagraphEnter(editor: Editor, onNewBlock: (payload: NewBlockPayl
     doc.firstChild.content.size === 0;
 
   if (isOnlyEmptyParagraph) {
-    onNewBlock({});
+    onNewBlock({ remainingMarkdown: "" });
     return true;
   }
 
@@ -48,9 +62,15 @@ function handleParagraphEnter(editor: Editor, onNewBlock: (payload: NewBlockPayl
     const restMd = sliceToMarkdown(editor, restFrom, editor.state.doc.content.size);
     if (restMd) {
       editor.chain().focus().deleteRange({ from: restFrom, to: editor.state.doc.content.size }).run();
-      onNewBlock({ markdown: [afterMd, restMd].filter(Boolean).join("\n\n") });
+      onNewBlock({
+        markdown: [afterMd, restMd].filter(Boolean).join("\n\n"),
+        remainingMarkdown: currentEditorMarkdown(editor),
+      });
     } else {
-      onNewBlock({ markdown: afterMd });
+      onNewBlock({
+        markdown: afterMd,
+        remainingMarkdown: currentEditorMarkdown(editor),
+      });
     }
     return true;
   }
@@ -58,11 +78,14 @@ function handleParagraphEnter(editor: Editor, onNewBlock: (payload: NewBlockPayl
   const restMd = sliceToMarkdown(editor, posAfterParagraph, doc.content.size);
   if (restMd) {
     editor.chain().focus().deleteRange({ from: posAfterParagraph, to: doc.content.size }).run();
-    onNewBlock({ markdown: restMd });
+    onNewBlock({
+      markdown: restMd,
+      remainingMarkdown: currentEditorMarkdown(editor),
+    });
     return true;
   }
 
-  onNewBlock({});
+  onNewBlock({ remainingMarkdown: currentEditorMarkdown(editor) });
   return true;
 }
 
@@ -78,7 +101,7 @@ function handleEnter(editor: Editor, onNewBlock: (payload: NewBlockPayload) => v
   }
 
   if ($from.parent.type.name === "heading") {
-    onNewBlock({});
+    onNewBlock({ remainingMarkdown: currentEditorMarkdown(editor) });
     return true;
   }
 

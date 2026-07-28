@@ -24,7 +24,10 @@ import {
   findBlockLocation,
   countLeafBlocks,
   getPreviousLeafBlockId,
+  listLeafBlockIds,
+  mapLeafBlock,
   removeBlockAt,
+  removeBlocksByIds,
   updateRowFlexes,
 } from "@/lib/blocks/content-ops";
 import type { DropZone } from "@/lib/blocks/editor-types";
@@ -44,6 +47,7 @@ import { FlexRowWrapper } from "@/components/admin/NotionEditor/FlexRowWrapper";
 import { ImageBlock } from "@/components/admin/NotionEditor/ImageBlock";
 import { NotionEditor, focusNotionEditor } from "@/components/admin/NotionEditor/NotionEditor";
 import { SlashMenu, type SlashMenuRef } from "@/components/admin/NotionEditor/SlashMenu";
+import type { NewBlockPayload } from "@/components/admin/NotionEditor/notion-block-enter";
 import {
   applySlashToEditor,
   deleteSlashCommand,
@@ -53,6 +57,7 @@ import type { SlashItem } from "@/components/admin/NotionEditor/slash-items";
 import { uploadAdminImage } from "@/lib/admin/upload-image";
 import { blockIdAtPoint, dataTransferHasImages, extractImageFiles } from "@/lib/admin/image-drop";
 import { cn } from "@/lib/utils";
+import type { Dispatch, SetStateAction } from "react";
 
 function getLastLeafBlockId(blocks: EditorBlock[]): string | null {
   for (let i = blocks.length - 1; i >= 0; i -= 1) {
@@ -90,17 +95,27 @@ function insertLeavesAfter(blocks: EditorBlock[], afterBlockId: string, leaves: 
 
 type NotionBlockEditorProps = {
   blocks: ArticleBlock[];
-  onChange: (blocks: ArticleBlock[]) => void;
+  onChange: Dispatch<SetStateAction<ArticleBlock[]>>;
   editorRef?: React.MutableRefObject<import("@tiptap/core").Editor | null>;
   onExternalRegisterEditor?: (blockId: string, editor: Editor | null) => void;
 };
 
 type DropState = { overId: string; zone: DropZone };
 
+function rangeSelectIds(orderedIds: string[], anchorId: string, targetId: string): string[] {
+  const a = orderedIds.indexOf(anchorId);
+  const b = orderedIds.indexOf(targetId);
+  if (a < 0 || b < 0) return [targetId];
+  const [from, to] = a < b ? [a, b] : [b, a];
+  return orderedIds.slice(from, to + 1);
+}
+
 export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegisterEditor }: NotionBlockEditorProps) {
   const editorBlocks = useMemo(() => normalizeEditorBlocks(blocks), [blocks]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dropState, setDropState] = useState<DropState | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const selectionAnchorRef = useRef<string | null>(null);
   const pointerRef = useRef({ x: 0, y: 0 });
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -120,7 +135,13 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
   const fileDragDepthRef = useRef(0);
 
   const setEditorBlocks = useCallback(
-    (next: EditorBlock[]) => onChange(serializeEditorBlocks(next)),
+    (next: SetStateAction<EditorBlock[]>) => {
+      onChange((prev) => {
+        const current = normalizeEditorBlocks(prev);
+        const resolved = typeof next === "function" ? next(current) : next;
+        return serializeEditorBlocks(resolved);
+      });
+    },
     [onChange],
   );
 
@@ -139,26 +160,61 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
     return () => window.removeEventListener("keydown", handler, true);
   }, [slashState]);
 
+  const clearSelection = useCallback(() => {
+    setSelectedIds([]);
+    selectionAnchorRef.current = null;
+  }, []);
+
+  const selectBlocks = useCallback(
+    (blockId: string, event: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) => {
+      const ordered = listLeafBlockIds(editorBlocks);
+      if (event.shiftKey && selectionAnchorRef.current) {
+        setSelectedIds(rangeSelectIds(ordered, selectionAnchorRef.current, blockId));
+        return;
+      }
+      if (event.metaKey || event.ctrlKey) {
+        setSelectedIds((prev) => {
+          if (prev.includes(blockId)) return prev.filter((id) => id !== blockId);
+          return [...prev, blockId];
+        });
+        selectionAnchorRef.current = blockId;
+        return;
+      }
+      setSelectedIds([blockId]);
+      selectionAnchorRef.current = blockId;
+    },
+    [editorBlocks],
+  );
+
+  const deleteSelectedBlocks = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    setEditorBlocks((prev) => removeBlocksByIds(prev, selectedIds));
+    clearSelection();
+  }, [clearSelection, selectedIds, setEditorBlocks]);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (selectedIds.length === 0) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest?.(".ProseMirror, input, textarea, [contenteditable='true']")) return;
+      if (event.key === "Escape") {
+        clearSelection();
+        return;
+      }
+      if (event.key === "Backspace" || event.key === "Delete") {
+        event.preventDefault();
+        deleteSelectedBlocks();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [clearSelection, deleteSelectedBlocks, selectedIds.length]);
+
   const updateBlock = useCallback(
     (id: string, updater: (block: EditorLeafBlock) => EditorLeafBlock) => {
-      const next = editorBlocks.map((block) => {
-        if (isRowBlock(block)) {
-          return {
-            ...block,
-            data: {
-              ...block.data,
-              children: block.data.children.map((slot) =>
-                slot.block.id === id ? { ...slot, block: updater(slot.block) } : slot,
-              ),
-            },
-          };
-        }
-        if (block.id === id && isLeafBlock(block)) return updater(block);
-        return block;
-      });
-      setEditorBlocks(next);
+      setEditorBlocks((prev) => mapLeafBlock(prev, id, updater));
     },
-    [editorBlocks, setEditorBlocks],
+    [setEditorBlocks],
   );
 
   function handleDragStart(event: DragStartEvent) {
@@ -197,17 +253,24 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
     const over = event.over?.id ? String(event.over.id) : null;
     if (!active || !over || !dropState) return;
 
-    setEditorBlocks(applyDrop(editorBlocks, active, over, dropState.zone));
+    setEditorBlocks((prev) => applyDrop(prev, active, over, dropState.zone));
   }
 
   function handleContextAction(blockId: string, action: BlockContextMenuAction) {
     if (action.type === "delete") {
-      const loc = findBlockLocation(editorBlocks, blockId);
-      if (loc) setEditorBlocks(removeBlockAt(editorBlocks, loc));
+      if (selectedIds.length > 1 && selectedIds.includes(blockId)) {
+        deleteSelectedBlocks();
+        return;
+      }
+      setEditorBlocks((prev) => {
+        const loc = findBlockLocation(prev, blockId);
+        return loc ? removeBlockAt(prev, loc) : prev;
+      });
+      clearSelection();
       return;
     }
     if (action.type === "duplicate") {
-      setEditorBlocks(duplicateBlock(editorBlocks, blockId));
+      setEditorBlocks((prev) => duplicateBlock(prev, blockId));
       return;
     }
     if (action.type === "copyLink") {
@@ -250,48 +313,10 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
   }, [editorBlocks, focusBlock]);
 
   function insertAfter(blockId: string, leaf: EditorLeafBlock, options?: { focus?: boolean }) {
-    const loc = findBlockLocation(editorBlocks, blockId);
-    if (!loc) return;
-    const next = [...editorBlocks];
-    if (loc.kind === "root") {
-      next.splice(loc.index + 1, 0, leaf);
-    } else {
-      const row = next[loc.rowIndex] as RowBlock;
-      row.data.children.splice(loc.slotIndex + 1, 0, {
-        slotId: createId(),
-        flex: 1 / (row.data.children.length + 1),
-        block: leaf,
-      });
-      const flex = 1 / row.data.children.length;
-      row.data.children = row.data.children.map((c) => ({ ...c, flex }));
-      next[loc.rowIndex] = row;
-    }
-    setEditorBlocks(next);
-    if (options?.focus !== false && leaf.type === "text") {
-      setTimeout(() => focusBlock(leaf.id), 0);
-    }
-  }
-
-  const deleteLeafBlock = useCallback(
-    (blockId: string) => {
-      if (countLeafBlocks(editorBlocks) <= 1) return false;
-      const loc = findBlockLocation(editorBlocks, blockId);
-      if (!loc) return false;
-      const previousId = getPreviousLeafBlockId(editorBlocks, blockId);
-      if (previousId) pendingFocusBlockId.current = previousId;
-      setEditorBlocks(removeBlockAt(editorBlocks, loc));
-      return true;
-    },
-    [editorBlocks, focusBlock, setEditorBlocks],
-  );
-
-  const insertTextBlockAfter = useCallback(
-    (afterBlockId: string, markdown = "") => {
-      const leaf = createEmptyLeaf("text");
-      if (markdown && leaf.type === "text") leaf.data.markdown = markdown;
-      const loc = findBlockLocation(editorBlocks, afterBlockId);
-      if (!loc) return;
-      const next = [...editorBlocks];
+    setEditorBlocks((prev) => {
+      const loc = findBlockLocation(prev, blockId);
+      if (!loc) return prev;
+      const next = structuredClone(prev) as EditorBlock[];
       if (loc.kind === "root") {
         next.splice(loc.index + 1, 0, leaf);
       } else {
@@ -305,10 +330,70 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
         row.data.children = row.data.children.map((c) => ({ ...c, flex }));
         next[loc.rowIndex] = row;
       }
-      setEditorBlocks(next);
+      return next;
+    });
+    if (options?.focus !== false && leaf.type === "text") {
+      setTimeout(() => focusBlock(leaf.id), 0);
+    }
+  }
+
+  const deleteLeafBlock = useCallback(
+    (blockId: string) => {
+      let deleted = false;
+      setEditorBlocks((prev) => {
+        if (countLeafBlocks(prev) <= 1) return prev;
+        const loc = findBlockLocation(prev, blockId);
+        if (!loc) return prev;
+        const previousId = getPreviousLeafBlockId(prev, blockId);
+        if (previousId) pendingFocusBlockId.current = previousId;
+        deleted = true;
+        return removeBlockAt(prev, loc);
+      });
+      if (deleted) clearSelection();
+      return deleted;
+    },
+    [clearSelection, setEditorBlocks],
+  );
+
+  const insertTextBlockAfter = useCallback(
+    (afterBlockId: string, payload: NewBlockPayload = {}) => {
+      const markdown = payload.markdown ?? "";
+      const leaf = createEmptyLeaf("text");
+      if (markdown && leaf.type === "text") leaf.data.markdown = markdown;
+
+      setEditorBlocks((prev) => {
+        let next = prev;
+        if (payload.remainingMarkdown !== undefined) {
+          next = mapLeafBlock(next, afterBlockId, (block) =>
+            block.type === "text" ? { ...block, data: { ...block.data, markdown: payload.remainingMarkdown! } } : block,
+          );
+        }
+
+        const loc = findBlockLocation(next, afterBlockId);
+        if (!loc) return next;
+        next = structuredClone(next) as EditorBlock[];
+        if (loc.kind === "root") {
+          const freshLoc = findBlockLocation(next, afterBlockId);
+          if (!freshLoc || freshLoc.kind !== "root") return next;
+          next.splice(freshLoc.index + 1, 0, leaf);
+        } else {
+          const freshLoc = findBlockLocation(next, afterBlockId);
+          if (!freshLoc || freshLoc.kind !== "row") return next;
+          const row = next[freshLoc.rowIndex] as RowBlock;
+          row.data.children.splice(freshLoc.slotIndex + 1, 0, {
+            slotId: createId(),
+            flex: 1 / (row.data.children.length + 1),
+            block: leaf,
+          });
+          const flex = 1 / row.data.children.length;
+          row.data.children = row.data.children.map((c) => ({ ...c, flex }));
+          next[freshLoc.rowIndex] = row;
+        }
+        return next;
+      });
       setTimeout(() => focusBlock(leaf.id), 0);
     },
-    [editorBlocks, focusBlock, setEditorBlocks],
+    [focusBlock, setEditorBlocks],
   );
 
   function openSlashForNewBlock(afterBlockId: string) {
@@ -367,7 +452,7 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
           leaves.push(leaf);
         }
 
-        setEditorBlocks(insertLeavesAfter(editorBlocks, targetId, leaves));
+        setEditorBlocks((prev) => insertLeavesAfter(prev, targetId, leaves));
       } catch (error) {
         setImageUploadError(error instanceof Error ? error.message : "Upload failed");
       } finally {
@@ -439,6 +524,28 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
         {imageUploadError ? (
           <p className="text-xs text-red-600">{imageUploadError}</p>
         ) : null}
+        {selectedIds.length > 1 ? (
+          <div className="sticky top-2 z-30 mb-2 flex items-center gap-2 rounded-lg border border-stone-200 bg-white/95 px-3 py-2 text-sm shadow-sm backdrop-blur dark:border-stone-700 dark:bg-stone-900/95">
+            <span className="text-stone-600 dark:text-stone-300">{selectedIds.length} blocks selected</span>
+            <button
+              type="button"
+              className="rounded-md bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-300"
+              onClick={deleteSelectedBlocks}
+            >
+              Delete
+            </button>
+            <button
+              type="button"
+              className="rounded-md px-2.5 py-1 text-xs font-medium text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800"
+              onClick={clearSelection}
+            >
+              Clear
+            </button>
+            <span className="ml-auto hidden text-[11px] text-stone-400 sm:inline">
+              Shift+click or ⌘/Ctrl+click on ⠿ · Delete to remove
+            </span>
+          </div>
+        ) : null}
         {editorBlocks.map((block, index) => (
           <RootBlockNode
             key={block.id}
@@ -446,14 +553,21 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
             index={index}
             activeId={activeId}
             dropState={dropState}
+            selectedIds={selectedIds}
             editorRef={index === 0 && block.type === "text" ? editorRef : undefined}
-            onUpdateLeaf={(id, leaf) => updateBlock(id, () => leaf)}
+            onUpdateLeaf={(id, leaf) => {
+              clearSelection();
+              updateBlock(id, () => leaf);
+            }}
             onContextAction={handleContextAction}
             onAddBelow={openSlashForNewBlock}
             onNewBlock={insertTextBlockAfter}
             onDeleteBlock={deleteLeafBlock}
             onRegisterEditor={registerEditor}
-            onRowFlexChange={(rowId, flexes) => setEditorBlocks(updateRowFlexes(editorBlocks, rowId, flexes))}
+            onSelectBlock={selectBlocks}
+            onRowFlexChange={(rowId, flexes) =>
+              setEditorBlocks((prev) => updateRowFlexes(prev, rowId, flexes))
+            }
             onSlash={(blockId, state, rect) => {
               if (!state) setSlashState(null);
               else setSlashState({ blockId, query: state.query, rect: rect ?? (() => null) });
@@ -489,6 +603,7 @@ function RootBlockNode({
   index,
   activeId,
   dropState,
+  selectedIds,
   editorRef,
   onUpdateLeaf,
   onContextAction,
@@ -496,6 +611,7 @@ function RootBlockNode({
   onNewBlock,
   onDeleteBlock,
   onRegisterEditor,
+  onSelectBlock,
   onRowFlexChange,
   onSlash,
   onImageFilesDrop,
@@ -504,13 +620,15 @@ function RootBlockNode({
   index: number;
   activeId: string | null;
   dropState: DropState | null;
+  selectedIds: string[];
   editorRef?: React.MutableRefObject<import("@tiptap/core").Editor | null>;
   onUpdateLeaf: (id: string, leaf: EditorLeafBlock) => void;
   onContextAction: (id: string, action: BlockContextMenuAction) => void;
   onAddBelow: (id: string) => void;
-  onNewBlock: (afterBlockId: string, markdown?: string) => void;
+  onNewBlock: (afterBlockId: string, payload?: NewBlockPayload) => void;
   onDeleteBlock: (blockId: string) => boolean;
   onRegisterEditor: (blockId: string, editor: Editor | null) => void;
+  onSelectBlock: (blockId: string, event: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) => void;
   onRowFlexChange: (rowId: string, flexes: number[]) => void;
   onSlash: (
     blockId: string,
@@ -531,12 +649,14 @@ function RootBlockNode({
               block={slot.block}
               activeId={activeId}
               dropState={dropState}
+              selected={selectedIds.includes(slot.block.id)}
               onUpdate={(leaf) => onUpdateLeaf(slot.block.id, leaf)}
               onContextAction={(action) => onContextAction(slot.block.id, action)}
               onAddBelow={() => onAddBelow(slot.block.id)}
               onNewBlock={onNewBlock}
               onDeleteBlock={onDeleteBlock}
               onRegisterEditor={onRegisterEditor}
+              onSelectBlock={onSelectBlock}
               onSlash={onSlash}
               onImageFilesDrop={onImageFilesDrop}
             />
@@ -554,6 +674,7 @@ function RootBlockNode({
       block={block}
       activeId={activeId}
       dropState={dropState}
+      selected={selectedIds.includes(block.id)}
       editorRef={editorRef}
       onUpdate={(leaf) => onUpdateLeaf(block.id, leaf)}
       onContextAction={(action) => onContextAction(block.id, action)}
@@ -561,6 +682,7 @@ function RootBlockNode({
       onNewBlock={onNewBlock}
       onDeleteBlock={onDeleteBlock}
       onRegisterEditor={onRegisterEditor}
+      onSelectBlock={onSelectBlock}
       onSlash={onSlash}
       onImageFilesDrop={onImageFilesDrop}
     />
@@ -593,6 +715,7 @@ function LeafBlockNode({
   block,
   activeId,
   dropState,
+  selected,
   editorRef,
   onUpdate,
   onContextAction,
@@ -600,6 +723,7 @@ function LeafBlockNode({
   onNewBlock,
   onDeleteBlock,
   onRegisterEditor,
+  onSelectBlock,
   onSlash,
   onImageFilesDrop,
 }: {
@@ -607,13 +731,15 @@ function LeafBlockNode({
   block: EditorLeafBlock;
   activeId: string | null;
   dropState: DropState | null;
+  selected: boolean;
   editorRef?: React.MutableRefObject<import("@tiptap/core").Editor | null>;
   onUpdate: (leaf: EditorLeafBlock) => void;
   onContextAction: (action: BlockContextMenuAction) => void;
   onAddBelow: () => void;
-  onNewBlock: (afterBlockId: string, markdown?: string) => void;
+  onNewBlock: (afterBlockId: string, payload?: NewBlockPayload) => void;
   onDeleteBlock: (blockId: string) => boolean;
   onRegisterEditor: (blockId: string, editor: Editor | null) => void;
+  onSelectBlock: (blockId: string, event: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) => void;
   onSlash: (
     blockId: string,
     state: { query: string } | null,
@@ -636,17 +762,19 @@ function LeafBlockNode({
       {showIndicator && dropState ? <DragIndicator zone={dropState.zone} /> : null}
       <BlockWrapper
         blockId={block.id}
+        selected={selected}
         isDragging={isDragging}
         dragAttributes={attributes}
         dragListeners={listeners}
         onAddBelow={onAddBelow}
         onContextAction={onContextAction}
+        onSelect={(event) => onSelectBlock(block.id, event)}
       >
         <BlockContent
           block={block}
           editorRef={editorRef}
           onUpdate={onUpdate}
-          onNewBlock={(markdown) => onNewBlock(block.id, markdown)}
+          onNewBlock={(payload) => onNewBlock(block.id, payload)}
           onDeleteBlock={() => onDeleteBlock(block.id)}
           onRegisterEditor={onRegisterEditor}
           onSlash={onSlash}
@@ -670,7 +798,7 @@ function BlockContent({
   block: EditorLeafBlock;
   editorRef?: React.MutableRefObject<import("@tiptap/core").Editor | null>;
   onUpdate: (leaf: EditorLeafBlock) => void;
-  onNewBlock: (markdown?: string) => void;
+  onNewBlock: (payload?: NewBlockPayload) => void;
   onDeleteBlock: () => boolean;
   onRegisterEditor: (blockId: string, editor: Editor | null) => void;
   onSlash: (
@@ -689,7 +817,7 @@ function BlockContent({
         blockMode
         blockId={block.id}
         onRegisterEditor={onRegisterEditor}
-        onNewBlock={(payload) => onNewBlock(payload.markdown)}
+        onNewBlock={(payload) => onNewBlock(payload)}
         onDeleteBlock={onDeleteBlock}
         onSlashTrigger={(state, rect) => onSlash(block.id, state, rect)}
         onImageFilesDrop={onImageFilesDrop}

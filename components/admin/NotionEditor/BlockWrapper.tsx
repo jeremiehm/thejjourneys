@@ -20,6 +20,8 @@ type BlockWrapperProps = {
   dragAttributes?: DraggableAttributes;
   dragListeners?: SyntheticListenerMap;
   onContextAction: (action: BlockContextMenuAction) => void;
+  onSelect?: (event: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) => void;
+  selected?: boolean;
   isDragging?: boolean;
   className?: string;
 };
@@ -38,6 +40,8 @@ export function BlockWrapper({
   dragAttributes,
   dragListeners,
   onContextAction,
+  onSelect,
+  selected,
   isDragging,
   className,
 }: BlockWrapperProps) {
@@ -123,6 +127,7 @@ export function BlockWrapper({
         "notion-block",
         chromeVisible && "is-chrome-visible",
         menuOpen && "is-chrome-active",
+        selected && "is-selected",
         isDragging && "opacity-40",
         className,
       )}
@@ -142,7 +147,7 @@ export function BlockWrapper({
         <button
           type="button"
           aria-label="Move or menu"
-          className="btn-drag notion-chrome-btn"
+          className={cn("btn-drag notion-chrome-btn", selected && "is-selected-handle")}
           {...dragAttributes}
           {...dragListeners}
           onPointerDown={(event) => {
@@ -153,7 +158,16 @@ export function BlockWrapper({
             if (dragClicked.current && !isDragging) {
               event.preventDefault();
               event.stopPropagation();
-              setMenuOpen((open) => !open);
+              onSelect?.({
+                shiftKey: event.shiftKey,
+                metaKey: event.metaKey,
+                ctrlKey: event.ctrlKey,
+              });
+              if (!event.shiftKey && !event.metaKey && !event.ctrlKey) {
+                setMenuOpen((open) => !open);
+              } else {
+                setMenuOpen(false);
+              }
             }
             dragClicked.current = false;
           }}
