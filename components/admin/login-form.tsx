@@ -60,6 +60,7 @@ export function LoginForm() {
       </div>
       {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       <Button
+        type="submit"
         disabled={isPending}
         className="h-11 w-full rounded-xl bg-amber-500 text-stone-950 hover:bg-amber-400"
       >
