@@ -1,10 +1,27 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import { getArticleRedirect } from "@/lib/seo/redirects";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export async function proxy(request: NextRequest) {
+  // Public article slug redirects (301) — before auth handling
+  const articleMatch = request.nextUrl.pathname.match(/^\/collections\/([^/]+)\/([^/]+)\/?$/);
+  if (articleMatch) {
+    const collectionSlug = articleMatch[1]!;
+    const articleSlug = articleMatch[2]!;
+    const redirect = await getArticleRedirect(articleSlug);
+    if (redirect) {
+      const targetCollection = redirect.collection_slug ?? collectionSlug;
+      if (redirect.to_slug !== articleSlug || targetCollection !== collectionSlug) {
+        const url = request.nextUrl.clone();
+        url.pathname = `/collections/${targetCollection}/${redirect.to_slug}`;
+        return NextResponse.redirect(url, 301);
+      }
+    }
+  }
+
   let response = NextResponse.next({ request });
   const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
   const isLoginRoute = request.nextUrl.pathname.startsWith("/admin/login");
