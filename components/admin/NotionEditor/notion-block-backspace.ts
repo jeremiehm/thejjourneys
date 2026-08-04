@@ -1,7 +1,23 @@
 import { Extension, type Editor } from "@tiptap/core";
 
+function docContainsType(editor: Editor, typeName: string): boolean {
+  let found = false;
+  editor.state.doc.descendants((node) => {
+    if (node.type.name === typeName) {
+      found = true;
+      return false;
+    }
+    return undefined;
+  });
+  return found;
+}
+
 function isEditorVisuallyEmpty(editor: Editor): boolean {
   const { doc } = editor.state;
+  // Tables / callouts can be empty of text but must not delete the outer block.
+  if (docContainsType(editor, "table") || docContainsType(editor, "callout")) {
+    return false;
+  }
   if (doc.textContent.trim().length > 0) return false;
   if (doc.childCount === 0) return true;
   if (doc.childCount === 1) {

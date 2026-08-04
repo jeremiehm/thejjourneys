@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
-import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { useEditor, EditorContent, ReactNodeViewRenderer, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
@@ -12,7 +12,9 @@ import Typography from "@tiptap/extension-typography";
 import Underline from "@tiptap/extension-underline";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table";
 import { Node, mergeAttributes } from "@tiptap/core";
+
 import {
   Dialog,
   DialogContent,
@@ -22,9 +24,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { uploadAdminImage } from "@/lib/admin/upload-image";
-import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown-editor";
+import {
+  htmlToMarkdown,
+  looksLikeMarkdown,
+  markdownToHtml,
+  shouldSplitPastedMarkdown,
+  splitMarkdownIntoEditorBlocks,
+  splitPastedMarkdownIntoBlocks,
+  type MarkdownEditorSegment,
+} from "@/lib/markdown-editor";
 import { dataTransferHasImages, extractImageFiles } from "@/lib/admin/image-drop";
 import { EditorBubbleMenu } from "@/components/admin/NotionEditor/BubbleMenu";
+import { CalloutNodeView } from "@/components/admin/NotionEditor/CalloutNodeView";
 import { LinkInputFloating } from "@/components/admin/NotionEditor/LinkInputFloating";
 import { createLinkShortcutExtension } from "@/components/admin/NotionEditor/link-shortcut";
 import { SlashMenu, type SlashMenuRef } from "@/components/admin/NotionEditor/SlashMenu";
@@ -41,6 +52,8 @@ import {
   getSlashMatch,
   getSlashMenuRect,
 } from "@/components/admin/NotionEditor/slash-command";
+import { TableControls } from "@/components/admin/NotionEditor/TableControls";
+import { CALLOUT_VARIANT_META, normalizeCalloutVariant } from "@/lib/callout-variants";
 
 /** Non-inclusive so Enter at end of link exits the mark before block split */
 const NotionLink = Link.extend({
@@ -52,17 +65,38 @@ const Callout = Node.create({
   group: "block",
   content: "block+",
   defining: true,
-  parseHTML: () => [{ tag: 'div[data-type="callout"]' }],
+  addAttributes() {
+    return {
+      variant: {
+        default: "note",
+        parseHTML: (element) => normalizeCalloutVariant(element.getAttribute("data-variant")),
+        renderHTML: (attributes) => ({
+          "data-variant": normalizeCalloutVariant(attributes.variant),
+        }),
+      },
+    };
+  },
+  parseHTML() {
+    return [{ tag: 'div[data-type="callout"]' }];
+  },
   renderHTML({ HTMLAttributes }) {
+    const variant = normalizeCalloutVariant(HTMLAttributes["data-variant"]);
     return [
       "div",
       mergeAttributes(HTMLAttributes, {
         "data-type": "callout",
         class: "notion-callout",
       }),
-      ["div", { class: "notion-callout-icon", contenteditable: "false" }, "💡"],
+      [
+        "div",
+        { class: "notion-callout-icon", contenteditable: "false" },
+        CALLOUT_VARIANT_META[variant].icon,
+      ],
       ["div", { class: "notion-callout-body" }, 0],
     ];
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(CalloutNodeView);
   },
 });
 
@@ -76,6 +110,8 @@ type NotionEditorProps = {
   onRegisterEditor?: (blockId: string, editor: Editor | null) => void;
   onNewBlock?: (payload: NewBlockPayload) => void;
   onDeleteBlock?: () => boolean;
+  /** Insert sibling blocks after this text block (markdown multi-block paste). */
+  onPasteMarkdownSegments?: (segments: MarkdownEditorSegment[]) => void;
   /** Si fourni, le menu slash est géré par le parent (éditeur de blocs) */
   onSlashTrigger?: (
     state: { query: string } | null,
@@ -94,10 +130,12 @@ export function NotionEditor({
   onRegisterEditor,
   onNewBlock,
   onDeleteBlock,
+  onPasteMarkdownSegments,
   onSlashTrigger,
   onImageFilesDrop,
 }: NotionEditorProps) {
   const slashRef = useRef<SlashMenuRef>(null);
+  const editorInstanceRef = useRef<Editor | null>(null);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [slashRect, setSlashRect] = useState<(() => DOMRect | null) | null>(null);
   const [mediaDialog, setMediaDialog] = useState<"image" | "video" | null>(null);
@@ -108,6 +146,7 @@ export function NotionEditor({
   const onNewBlockRef = useRef(onNewBlock);
   const onDeleteBlockRef = useRef(onDeleteBlock);
   const onImageFilesDropRef = useRef(onImageFilesDrop);
+  const onPasteMarkdownSegmentsRef = useRef(onPasteMarkdownSegments);
   useEffect(() => {
     onNewBlockRef.current = onNewBlock;
   }, [onNewBlock]);
@@ -117,6 +156,9 @@ export function NotionEditor({
   useEffect(() => {
     onImageFilesDropRef.current = onImageFilesDrop;
   }, [onImageFilesDrop]);
+  useEffect(() => {
+    onPasteMarkdownSegmentsRef.current = onPasteMarkdownSegments;
+  }, [onPasteMarkdownSegments]);
 
   const blockEnterExtension = useMemo(
     () =>
@@ -151,6 +193,10 @@ export function NotionEditor({
         bulletList: { keepMarks: true, keepAttributes: false },
         orderedList: { keepMarks: true, keepAttributes: false },
       }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
       Underline,
       NotionLink.configure({
         openOnClick: false,
@@ -161,7 +207,9 @@ export function NotionEditor({
       Image.configure({ inline: false }),
       Youtube.configure({ width: 640, height: 360 }),
       Highlight,
-      Typography,
+      Typography.configure({
+        emDash: false,
+      }),
       TaskList,
       TaskItem.configure({ nested: true }),
       Callout,
@@ -180,6 +228,46 @@ export function NotionEditor({
         class: blockMode
           ? "notion-editor-content notion-editor-content--block outline-none min-h-[1.5em]"
           : "notion-editor-content outline-none min-h-[200px]",
+      },
+      handlePaste(_view, event) {
+        const ed = editorInstanceRef.current;
+        if (!ed) return false;
+        if (ed.isActive("codeBlock")) return false;
+
+        const clipboard = event.clipboardData;
+        if (!clipboard) return false;
+
+        const html = clipboard.getData("text/html")?.trim();
+        if (html) return false;
+
+        const text = clipboard.getData("text/plain");
+        if (!text) return false;
+
+        const isSingleLine = !/\r?\n/.test(text.trim());
+        if (isSingleLine && !looksLikeMarkdown(text)) return false;
+        if (!looksLikeMarkdown(text)) return false;
+
+        event.preventDefault();
+
+        if (
+          blockMode &&
+          splitPastedMarkdownIntoBlocks &&
+          shouldSplitPastedMarkdown(text) &&
+          onPasteMarkdownSegmentsRef.current
+        ) {
+          const segments = splitMarkdownIntoEditorBlocks(text);
+          let rest = segments;
+          const first = segments[0];
+          if (first?.type === "text") {
+            ed.commands.insertContent(markdownToHtml(first.markdown));
+            rest = segments.slice(1);
+          }
+          if (rest.length > 0) onPasteMarkdownSegmentsRef.current(rest);
+          return true;
+        }
+
+        ed.commands.insertContent(markdownToHtml(text));
+        return true;
       },
       handleDOMEvents: {
         dragover(_view, event) {
@@ -211,6 +299,10 @@ export function NotionEditor({
       updateSlash(ed);
     },
   });
+
+  useEffect(() => {
+    editorInstanceRef.current = editor;
+  }, [editor]);
 
   useEffect(() => {
     if (editorRef) editorRef.current = editor;
@@ -295,6 +387,7 @@ export function NotionEditor({
         blockId={blockId}
         onOpenLinkEditor={() => setLinkEditorOpen(true)}
       />
+      {editor ? <TableControls editor={editor} /> : null}
       <EditorContent editor={editor} />
       {linkEditorOpen && editor ? (
         <LinkInputFloating editor={editor} onClose={() => setLinkEditorOpen(false)} />

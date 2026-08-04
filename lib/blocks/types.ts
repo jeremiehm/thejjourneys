@@ -32,7 +32,14 @@ export type CoverType = "banner" | "above_title" | "below_title";
 
 export type ImageBlock = BlockBase<
   "image",
-  { url: string; caption?: string; alt?: string; widthPercent?: number } & BlockLayout
+  {
+    url: string;
+    caption?: string;
+    alt?: string;
+    /** When true, alt may be empty intentionally (decorative). */
+    decorative?: boolean;
+    widthPercent?: number;
+  } & BlockLayout
 >;
 export type DividerBlock = BlockBase<"divider", { label?: string } & BlockLayout>;
 export type QuoteBlockWithLayout = BlockBase<"quote", { text: string; attribution?: string } & BlockLayout>;
@@ -136,18 +143,28 @@ export type Article = {
   title: string;
   slug: string;
   excerpt: string | null;
+  meta_title: string | null;
   meta_description: string | null;
+  og_image_url: string | null;
+  canonical_url: string | null;
+  noindex: boolean;
   lang: string;
   cover_image_url: string | null;
   cover_type: CoverType;
   content: ArticleBlock[];
   status: "draft" | "published";
   published_at: string | null;
+  /** Bumped on every autosave. Do not use for SEO dates. */
+  updated_at: string;
+  /**
+   * Set on publish only. Use for sitemap lastModified and metadata dateModified.
+   * See migration comment on articles.content_updated_at.
+   */
+  content_updated_at: string | null;
   position: number;
   view_count: number;
   like_count: number;
   created_at: string;
-  updated_at: string;
   author?: Author | null;
   collection?: Collection | null;
 };

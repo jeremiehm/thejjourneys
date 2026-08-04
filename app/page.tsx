@@ -4,17 +4,23 @@ import { CollectionCard } from "@/components/public/collection-card";
 import { SiteFooter } from "@/components/public/site-footer";
 import { SiteHeader } from "@/components/public/site-header";
 import { AppImage } from "@/components/ui/app-image";
+import { buildOrganizationJsonLd } from "@/lib/seo/structured-data";
 import { getArticleCoverUrl, getArticles, getCollections, isVisibleOnPublicSite } from "@/lib/data";
 
 export default async function Home() {
   const [collections, latestArticles] = await Promise.all([getCollections(), getArticles({ limit: 12 })]);
   const publicArticles = latestArticles.filter(isVisibleOnPublicSite);
   const featured = publicArticles[0];
+  const orgJsonLd = buildOrganizationJsonLd();
 
   return (
     <>
       <SiteHeader />
       <main>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+        />
         <section className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20">
           <div className="flex flex-col justify-center">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-700">Travel blog by Jeremie</p>

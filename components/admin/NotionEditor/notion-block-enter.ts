@@ -89,8 +89,20 @@ function handleParagraphEnter(editor: Editor, onNewBlock: (payload: NewBlockPayl
   return true;
 }
 
+function isInsideNode($from: ResolvedPos, typeName: string): boolean {
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    if ($from.node(depth).type.name === typeName) return true;
+  }
+  return false;
+}
+
 function handleEnter(editor: Editor, onNewBlock: (payload: NewBlockPayload) => void): boolean {
   const { $from } = editor.state.selection;
+
+  // Let TipTap / prosemirror-tables handle Enter inside tables and callouts.
+  if (isInsideNode($from, "table") || isInsideNode($from, "callout")) {
+    return false;
+  }
 
   const listItemType = findListItemType($from);
   if (listItemType) {

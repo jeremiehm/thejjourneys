@@ -233,6 +233,41 @@ export function ImageBlock({ block, onChange, onFilesDrop }: ImageBlockProps) {
         hovered={hovered}
         onChange={(caption) => onChange({ ...block, data: { ...block.data, caption } })}
       />
+      <div className={cn("mt-2 space-y-1.5", !showOverlay && !block.data.alt && !block.data.decorative ? "opacity-100" : showOverlay ? "opacity-100" : "opacity-0")}>
+        <label className="block">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-stone-500">Alt text</span>
+          <input
+            type="text"
+            value={block.data.alt ?? ""}
+            disabled={block.data.decorative}
+            onChange={(event) =>
+              onChange({ ...block, data: { ...block.data, alt: event.target.value, decorative: false } })
+            }
+            placeholder="Describe the image for screen readers and SEO"
+            className="mt-1 w-full rounded-md border border-stone-200 bg-white px-2 py-1.5 text-sm dark:border-stone-700 dark:bg-stone-900"
+          />
+        </label>
+        <label className="flex items-center gap-2 text-xs text-stone-500">
+          <input
+            type="checkbox"
+            checked={Boolean(block.data.decorative)}
+            onChange={(event) =>
+              onChange({
+                ...block,
+                data: {
+                  ...block.data,
+                  decorative: event.target.checked,
+                  alt: event.target.checked ? "" : block.data.alt,
+                },
+              })
+            }
+          />
+          Decorative (empty alt on purpose)
+        </label>
+        {!block.data.decorative && !(block.data.alt ?? "").trim() ? (
+          <p className="text-xs font-medium text-amber-600">Missing alt text — add a description or mark decorative.</p>
+        ) : null}
+      </div>
       <ImagePickerDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}

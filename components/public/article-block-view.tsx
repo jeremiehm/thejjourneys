@@ -3,6 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
+import type { ReactNode } from "react";
 import type { ArticleBlock, ColumnContentBlock } from "@/lib/blocks/types";
 import { AffiliateLink } from "@/components/affiliate-link";
 import { BlockLayoutShell } from "@/components/public/block-layout-shell";
@@ -10,6 +11,12 @@ import { isBlockFullWidth } from "@/lib/blocks/block-layout";
 import { spanToColClass } from "@/lib/blocks/layout-presets";
 import { AppImage } from "@/components/ui/app-image";
 import { cn } from "@/lib/utils";
+import {
+  CALLOUT_VARIANT_META,
+  calloutVariantFromToken,
+  normalizeCalloutVariant,
+  type CalloutVariant,
+} from "@/lib/callout-variants";
 
 function embedUrl(url: string) {
   if (url.includes("youtube.com/watch")) {
@@ -20,6 +27,42 @@ function embedUrl(url: string) {
     return `https://www.youtube.com/embed/${url.split("youtu.be/")[1]?.split("?")[0] ?? ""}`;
   }
   return url;
+}
+
+function textFromNode(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textFromNode).join("");
+  if (typeof node === "object" && "props" in node) {
+    const props = (node as { props?: { children?: ReactNode } }).props;
+    return textFromNode(props?.children);
+  }
+  return "";
+}
+
+function splitAlertFromChildren(children: ReactNode): {
+  variant: CalloutVariant | null;
+  body: ReactNode;
+} {
+  const list = Array.isArray(children) ? [...children] : [children];
+  for (let i = 0; i < list.length; i++) {
+    const child = list[i];
+    const text = textFromNode(child).trim();
+    const match = text.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*([\s\S]*)$/i);
+    if (!match) continue;
+    const variant = calloutVariantFromToken(`[!${match[1]}]`);
+    if (!variant) continue;
+
+    const remainder = match[2]?.trim() ?? "";
+    const nextChildren = [...list];
+    if (remainder) {
+      nextChildren[i] = <p key={`alert-rest-${i}`}>{remainder}</p>;
+    } else {
+      nextChildren.splice(i, 1);
+    }
+    return { variant, body: nextChildren };
+  }
+  return { variant: null, body: children };
 }
 
 const markdownComponents: Components = {
@@ -39,6 +82,21 @@ const markdownComponents: Components = {
       <a href={url} {...props}>
         {children}
       </a>
+    );
+  },
+  blockquote({ children, ...props }) {
+    const { variant, body } = splitAlertFromChildren(children);
+    if (!variant) {
+      return <blockquote {...props}>{children}</blockquote>;
+    }
+    const meta = CALLOUT_VARIANT_META[normalizeCalloutVariant(variant)];
+    return (
+      <div className="notion-callout" data-type="callout" data-variant={variant}>
+        <div className="notion-callout-icon" aria-hidden>
+          {meta.icon}
+        </div>
+        <div className="notion-callout-body">{body}</div>
+      </div>
     );
   },
 };
@@ -63,7 +121,11 @@ function ColumnContentView({ block }: { block: ColumnContentBlock }) {
       return (
         <figure className="space-y-2" style={{ width: `${width}%`, maxWidth: "100%" }}>
           <div className="relative aspect-[16/10] overflow-hidden rounded-2xl">
-            <AppImage src={block.data.url} alt={block.data.alt ?? block.data.caption ?? "Image"} />
+            <AppImage
+              src={block.data.url}
+              alt={block.data.decorative ? "" : (block.data.alt ?? block.data.caption ?? "Image")}
+              sizes="(min-width: 1024px) 42rem, 100vw"
+            />
           </div>
           {block.data.caption ? (
             <figcaption className="text-center text-sm text-stone-500">{block.data.caption}</figcaption>

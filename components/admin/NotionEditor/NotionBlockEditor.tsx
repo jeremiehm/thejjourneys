@@ -41,6 +41,7 @@ import {
   type EditorLeafBlock,
 } from "@/lib/blocks/editor-types";
 import type { ArticleBlock, RowBlock } from "@/lib/blocks/types";
+import type { MarkdownEditorSegment } from "@/lib/markdown-editor";
 import { BlockWrapper, type BlockContextMenuAction } from "@/components/admin/NotionEditor/BlockWrapper";
 import { DragIndicator } from "@/components/admin/NotionEditor/DragIndicator";
 import { FlexRowWrapper } from "@/components/admin/NotionEditor/FlexRowWrapper";
@@ -396,6 +397,49 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
     [focusBlock, setEditorBlocks],
   );
 
+  const insertMarkdownSegmentsAfter = useCallback(
+    (afterBlockId: string, segments: MarkdownEditorSegment[]) => {
+      if (segments.length === 0) return;
+
+      const leaves: EditorLeafBlock[] = segments.map((segment) => {
+        if (segment.type === "divider") return createEmptyLeaf("divider");
+        const leaf = createEmptyLeaf("text");
+        if (leaf.type === "text") leaf.data.markdown = segment.markdown;
+        return leaf;
+      });
+
+      const focusId =
+        [...leaves].reverse().find((leaf) => leaf.type === "text")?.id ?? leaves[leaves.length - 1]?.id ?? null;
+      if (focusId) pendingFocusBlockId.current = focusId;
+
+      setEditorBlocks((prev) => {
+        const loc = findBlockLocation(prev, afterBlockId);
+        if (!loc) return prev;
+        const next = structuredClone(prev) as EditorBlock[];
+        if (loc.kind === "root") {
+          const freshLoc = findBlockLocation(next, afterBlockId);
+          if (!freshLoc || freshLoc.kind !== "root") return next;
+          next.splice(freshLoc.index + 1, 0, ...leaves);
+          return next;
+        }
+        const freshLoc = findBlockLocation(next, afterBlockId);
+        if (!freshLoc || freshLoc.kind !== "row") return next;
+        const row = next[freshLoc.rowIndex] as RowBlock;
+        const inserts = leaves.map((block) => ({
+          slotId: createId(),
+          flex: 1,
+          block,
+        }));
+        row.data.children.splice(freshLoc.slotIndex + 1, 0, ...inserts);
+        const flex = 1 / row.data.children.length;
+        row.data.children = row.data.children.map((c) => ({ ...c, flex }));
+        next[freshLoc.rowIndex] = row;
+        return next;
+      });
+    },
+    [setEditorBlocks],
+  );
+
   function openSlashForNewBlock(afterBlockId: string) {
     const leaf = createEmptyLeaf("text");
     insertAfter(afterBlockId, leaf);
@@ -562,6 +606,7 @@ export function NotionBlockEditor({ blocks, onChange, editorRef, onExternalRegis
             onContextAction={handleContextAction}
             onAddBelow={openSlashForNewBlock}
             onNewBlock={insertTextBlockAfter}
+            onPasteMarkdownSegments={insertMarkdownSegmentsAfter}
             onDeleteBlock={deleteLeafBlock}
             onRegisterEditor={registerEditor}
             onSelectBlock={selectBlocks}
@@ -609,6 +654,7 @@ function RootBlockNode({
   onContextAction,
   onAddBelow,
   onNewBlock,
+  onPasteMarkdownSegments,
   onDeleteBlock,
   onRegisterEditor,
   onSelectBlock,
@@ -626,6 +672,7 @@ function RootBlockNode({
   onContextAction: (id: string, action: BlockContextMenuAction) => void;
   onAddBelow: (id: string) => void;
   onNewBlock: (afterBlockId: string, payload?: NewBlockPayload) => void;
+  onPasteMarkdownSegments: (afterBlockId: string, segments: MarkdownEditorSegment[]) => void;
   onDeleteBlock: (blockId: string) => boolean;
   onRegisterEditor: (blockId: string, editor: Editor | null) => void;
   onSelectBlock: (blockId: string, event: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) => void;
@@ -654,6 +701,7 @@ function RootBlockNode({
               onContextAction={(action) => onContextAction(slot.block.id, action)}
               onAddBelow={() => onAddBelow(slot.block.id)}
               onNewBlock={onNewBlock}
+              onPasteMarkdownSegments={onPasteMarkdownSegments}
               onDeleteBlock={onDeleteBlock}
               onRegisterEditor={onRegisterEditor}
               onSelectBlock={onSelectBlock}
@@ -680,6 +728,7 @@ function RootBlockNode({
       onContextAction={(action) => onContextAction(block.id, action)}
       onAddBelow={() => onAddBelow(block.id)}
       onNewBlock={onNewBlock}
+      onPasteMarkdownSegments={onPasteMarkdownSegments}
       onDeleteBlock={onDeleteBlock}
       onRegisterEditor={onRegisterEditor}
       onSelectBlock={onSelectBlock}
@@ -721,6 +770,7 @@ function LeafBlockNode({
   onContextAction,
   onAddBelow,
   onNewBlock,
+  onPasteMarkdownSegments,
   onDeleteBlock,
   onRegisterEditor,
   onSelectBlock,
@@ -737,6 +787,7 @@ function LeafBlockNode({
   onContextAction: (action: BlockContextMenuAction) => void;
   onAddBelow: () => void;
   onNewBlock: (afterBlockId: string, payload?: NewBlockPayload) => void;
+  onPasteMarkdownSegments: (afterBlockId: string, segments: MarkdownEditorSegment[]) => void;
   onDeleteBlock: (blockId: string) => boolean;
   onRegisterEditor: (blockId: string, editor: Editor | null) => void;
   onSelectBlock: (blockId: string, event: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) => void;
@@ -775,6 +826,7 @@ function LeafBlockNode({
           editorRef={editorRef}
           onUpdate={onUpdate}
           onNewBlock={(payload) => onNewBlock(block.id, payload)}
+          onPasteMarkdownSegments={(segments) => onPasteMarkdownSegments(block.id, segments)}
           onDeleteBlock={() => onDeleteBlock(block.id)}
           onRegisterEditor={onRegisterEditor}
           onSlash={onSlash}
@@ -790,6 +842,7 @@ function BlockContent({
   editorRef,
   onUpdate,
   onNewBlock,
+  onPasteMarkdownSegments,
   onDeleteBlock,
   onRegisterEditor,
   onSlash,
@@ -799,6 +852,7 @@ function BlockContent({
   editorRef?: React.MutableRefObject<import("@tiptap/core").Editor | null>;
   onUpdate: (leaf: EditorLeafBlock) => void;
   onNewBlock: (payload?: NewBlockPayload) => void;
+  onPasteMarkdownSegments: (segments: MarkdownEditorSegment[]) => void;
   onDeleteBlock: () => boolean;
   onRegisterEditor: (blockId: string, editor: Editor | null) => void;
   onSlash: (
@@ -818,6 +872,7 @@ function BlockContent({
         blockId={block.id}
         onRegisterEditor={onRegisterEditor}
         onNewBlock={(payload) => onNewBlock(payload)}
+        onPasteMarkdownSegments={onPasteMarkdownSegments}
         onDeleteBlock={onDeleteBlock}
         onSlashTrigger={(state, rect) => onSlash(block.id, state, rect)}
         onImageFilesDrop={onImageFilesDrop}

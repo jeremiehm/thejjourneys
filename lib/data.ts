@@ -40,11 +40,16 @@ function mapCollection(row: CollectionRow): Collection {
 function mapArticle(row: ArticleRow): Article {
   return {
     ...row,
+    meta_title: row.meta_title ?? null,
     meta_description: row.meta_description ?? null,
+    og_image_url: row.og_image_url ?? null,
+    canonical_url: row.canonical_url ?? null,
+    noindex: row.noindex ?? false,
     lang: row.lang ?? "en",
     cover_type: row.cover_type ?? "banner",
     view_count: row.view_count ?? 0,
     like_count: row.like_count ?? 0,
+    content_updated_at: row.content_updated_at ?? row.updated_at ?? null,
     content: parseArticleContent(row.content),
     author: row.authors ?? null,
     collection: row.collections ? mapCollection(row.collections) : null,

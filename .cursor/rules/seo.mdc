@@ -1,0 +1,33 @@
+---
+description: SEO architecture constraints for articles, metadata, sitemap, and redirects
+globs: app/**/*,lib/seo/**/*,lib/blocks/types.ts,components/admin/NotionArticlePage.tsx,components/admin/NotionEditor/PropertyRow.tsx,middleware.ts,supabase/migrations/**
+alwaysApply: false
+---
+
+# SEO context
+
+Next.js App Router + TypeScript + Supabase. English-language travel blog.
+Admin CMS at `/admin/articles/[id]/edit`, custom Notion-style block editor on TipTap.
+
+## Relevant existing pieces
+
+- `app/` — App Router
+- `components/admin/NotionArticlePage.tsx` — page shell, autosave, publish
+- `components/admin/NotionEditor/PropertyRow.tsx` — article metadata fields UI
+- `components/public/article-block-view.tsx` — public renderer, react-markdown
+- `lib/blocks/types.ts` — ArticleBlock, Article types
+- `supabase/migrations/` — convention: `20260712210000_name.sql`
+- Supabase table `articles`, body in `content` JSONB, `lang` defaults to `en`
+
+Server Actions: `autosaveArticle` (debounced), `saveArticle` (publish).
+Revisions: `lib/article-revisions.ts`.
+
+## Hard constraints
+
+1. INSPECT THE EXISTING SCHEMA FIRST. Read the latest migrations and the Article type before writing any SQL. Add only columns that do not already exist.
+2. Do not break autosave. Any new column must be nullable or have a default, and existing rows must be backfilled in the same migration.
+3. Do not change the shape of `content` JSONB or the ArticleBlock union.
+4. The site is English only. Do NOT add hreflang, locale routing, or i18n scaffolding.
+5. Metadata must be server-rendered. Never set title, description or canonical from a client component or a useEffect.
+6. Detect the current rendering strategy of the public article route (static, ISR, or dynamic) and adapt rather than converting it.
+7. Every new admin field goes through PropertyRow's existing popover pattern. Do not introduce a second settings UI.

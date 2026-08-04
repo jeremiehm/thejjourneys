@@ -7,6 +7,8 @@ import { createArticleRevision } from "@/lib/article-revisions";
 import { structureSectionsToBlocks } from "@/lib/ai/structure-to-blocks";
 import type { StructureSection } from "@/lib/ai/types";
 import { parseArticleContent, parseCollectionLayout } from "@/lib/blocks/validation";
+import { recordArticleSlugRedirect } from "@/lib/seo/redirects";
+import { runSeoChecks, seoChecksBlockPublish } from "@/lib/seo/checks";
 import { slugify } from "@/lib/utils";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -127,6 +129,7 @@ function buildArticlePayload(formData: FormData, options?: { isUpdate?: boolean 
   const existingPublishedAt = value(formData, "existing_published_at");
   const previousStatus = value(formData, "previous_status");
   const coverTypeRaw = value(formData, "cover_type");
+  const requestedSlug = value(formData, "slug");
 
   let published_at: string | null = null;
   if (status === "published") {
@@ -139,11 +142,15 @@ function buildArticlePayload(formData: FormData, options?: { isUpdate?: boolean 
 
   const payload = {
     title,
-    slug: slugify(title) || "untitled",
+    slug: slugify(requestedSlug || title) || "untitled",
     collection_id: value(formData, "collection_id"),
     author_id: value(formData, "author_id"),
     excerpt: value(formData, "excerpt") || null,
+    meta_title: value(formData, "meta_title") || null,
     meta_description: value(formData, "meta_description") || null,
+    og_image_url: value(formData, "og_image_url") || null,
+    canonical_url: value(formData, "canonical_url") || null,
+    noindex: value(formData, "noindex") === "true" || value(formData, "noindex") === "on",
     lang: value(formData, "lang") || "en",
     cover_image_url: value(formData, "cover_image_url") || null,
     cover_type: COVER_TYPES.includes(coverTypeRaw as (typeof COVER_TYPES)[number])
@@ -154,6 +161,7 @@ function buildArticlePayload(formData: FormData, options?: { isUpdate?: boolean 
     content: parseArticleContent(parseJson(value(formData, "content"))),
   };
 
+  void options;
   return payload;
 }
 
@@ -171,14 +179,19 @@ export async function autosaveArticle(formData: FormData) {
   const basePayload = buildArticlePayload(formData, { isUpdate: Boolean(id) });
 
   if (id) {
-    const payload = basePayload;
+    const slug = await uniqueArticleSlug(supabase, basePayload.slug, id);
+    const payload = { ...basePayload, slug };
+
+    // Autosave must not bump content_updated_at (and does not record redirects —
+    // slug redirects are created on publish/saveArticle only).
     const { data, error } = await supabase
       .from("articles")
       .update(payload)
       .eq("id", id)
-      .select("id, updated_at, published_at")
+      .select("id, updated_at, published_at, content_updated_at")
       .single();
     if (error) return { ok: false as const, error: error.message };
+
     await createArticleRevision(
       id,
       {
@@ -196,6 +209,8 @@ export async function autosaveArticle(formData: FormData) {
       id,
       updatedAt: data?.updated_at,
       publishedAt: data?.published_at,
+      contentUpdatedAt: data?.content_updated_at,
+      slug,
     };
   }
 
@@ -234,19 +249,58 @@ export async function saveArticle(formData: FormData) {
   const id = value(formData, "id");
   const collectionId = value(formData, "collection_id");
   const basePayload = buildArticlePayload(formData, { isUpdate: Boolean(id) });
+  const intent = value(formData, "intent");
+  const previousSlug = value(formData, "previous_slug");
+
+  if (intent === "publish") {
+    const checks = runSeoChecks({
+      title: basePayload.title,
+      slug: basePayload.slug,
+      metaTitle: basePayload.meta_title,
+      metaDescription: basePayload.meta_description,
+      ogImageUrl: basePayload.og_image_url,
+      coverImageUrl: basePayload.cover_image_url,
+      noindex: basePayload.noindex,
+      content: basePayload.content,
+    });
+    if (seoChecksBlockPublish(checks)) {
+      const fails = checks.filter((c) => c.status === "fail").map((c) => c.message).join(" ");
+      const path = id ? `/admin/articles/${id}/edit` : "/admin/articles/new";
+      redirectWithFlash(path, "error", `Publish blocked: ${fails}`);
+    }
+  }
 
   if (id) {
-    const { error } = await supabase.from("articles").update(basePayload).eq("id", id);
+    const slug = await uniqueArticleSlug(supabase, basePayload.slug, id);
+    const payload = {
+      ...basePayload,
+      slug,
+      ...(intent === "publish" ? { content_updated_at: new Date().toISOString() } : {}),
+    };
+
+    const { error } = await supabase.from("articles").update(payload).eq("id", id);
     if (error) redirectWithFlash(`/admin/articles/${id}/edit`, "error", error.message);
+
+    if (previousSlug && previousSlug !== slug && payload.published_at) {
+      const redirectResult = await recordArticleSlugRedirect(supabase, {
+        articleId: id,
+        fromSlug: previousSlug,
+        toSlug: slug,
+      });
+      if (!redirectResult.ok) {
+        redirectWithFlash(`/admin/articles/${id}/edit`, "error", redirectResult.error);
+      }
+    }
+
     await createArticleRevision(
       id,
       {
-        title: basePayload.title,
-        excerpt: basePayload.excerpt,
-        meta_description: basePayload.meta_description,
-        content: basePayload.content,
+        title: payload.title,
+        excerpt: payload.excerpt,
+        meta_description: payload.meta_description,
+        content: payload.content,
       },
-      value(formData, "intent") === "publish" ? "Publish" : "Save",
+      intent === "publish" ? "Publish" : "Save",
     );
     revalidatePath("/admin/articles");
     revalidatePath("/collections");
@@ -256,9 +310,16 @@ export async function saveArticle(formData: FormData) {
 
   const position = collectionId ? await nextArticlePosition(supabase, collectionId) : 0;
   const slug = await uniqueArticleSlug(supabase, basePayload.slug);
+  const insertPayload = {
+    ...basePayload,
+    position,
+    slug,
+    content_updated_at:
+      basePayload.status === "published" ? new Date().toISOString() : null,
+  };
   const { data, error } = await supabase
     .from("articles")
-    .insert({ ...basePayload, position, slug })
+    .insert(insertPayload)
     .select("id")
     .single();
   if (error || !data) redirectWithFlash("/admin/articles/new", "error", error?.message ?? "Insert failed.");

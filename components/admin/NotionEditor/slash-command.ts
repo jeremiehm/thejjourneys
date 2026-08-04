@@ -1,5 +1,6 @@
 import type { Editor } from "@tiptap/core";
 import type { SlashItem } from "@/components/admin/NotionEditor/slash-items";
+import type { CalloutVariant } from "@/lib/callout-variants";
 
 export type SlashMatch = {
   query: string;
@@ -42,6 +43,18 @@ export type ApplySlashOptions = {
   onOpenVideoDialog?: () => void;
 };
 
+function insertCallout(editor: Editor, variant: CalloutVariant) {
+  editor
+    .chain()
+    .focus()
+    .insertContent({
+      type: "callout",
+      attrs: { variant },
+      content: [{ type: "paragraph" }],
+    })
+    .run();
+}
+
 export function applySlashToEditor(editor: Editor, item: SlashItem, options?: ApplySlashOptions): void {
   deleteSlashCommand(editor);
 
@@ -83,11 +96,23 @@ export function applySlashToEditor(editor: Editor, item: SlashItem, options?: Ap
     case "task":
       chain.toggleTaskList().run();
       break;
-    case "callout":
-      editor.commands.insertContent({
-        type: "callout",
-        content: [{ type: "paragraph" }],
-      });
+    case "table":
+      chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+      break;
+    case "callout-note":
+      insertCallout(editor, "note");
+      break;
+    case "callout-tip":
+      insertCallout(editor, "tip");
+      break;
+    case "callout-important":
+      insertCallout(editor, "important");
+      break;
+    case "callout-warning":
+      insertCallout(editor, "warning");
+      break;
+    case "callout-caution":
+      insertCallout(editor, "caution");
       break;
     default:
       break;

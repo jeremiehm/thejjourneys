@@ -1,0 +1,34 @@
+---
+description: Notion-style TipTap block editor architecture and hard constraints
+globs: components/admin/NotionEditor/**/*,lib/markdown-editor.ts,lib/blocks/**/*,components/public/article-block-view.tsx,knowledge-base/notion-editor.md
+alwaysApply: false
+---
+
+# Notion editor context
+
+Stack: Next.js + TypeScript + Supabase. Admin article editor at `/admin/articles/[id]/edit`.
+Custom Notion-style block editor built on TipTap. Not the Notion API.
+
+## Architecture — do not break
+
+```
+NotionArticlePage (owns ArticleBlock[], autosave)
+  └── NotionBlockEditor (block list, dnd-kit DnD, shared slash menu)
+        └── NotionEditor × N (one TipTap instance per `text` block)
+```
+
+- Each `text` block stores MARKDOWN in `block.data.markdown`, not HTML.
+- TipTap works in HTML internally. Conversion lives in `lib/markdown-editor.ts`:
+  - `markdownToHtml()` = marked, GFM, breaks
+  - `htmlToMarkdown()` = TurndownService, atx headings
+- Blocks persist to Supabase `articles.content` as JSONB.
+- Public site renders `ArticleBlock[]` in `components/public/article-block-view.tsx` using react-markdown. It does NOT use TipTap.
+
+## Hard constraints
+
+1. Do NOT change the `ArticleBlock` union or add a new persisted block type. New rich content lives INSIDE a text block's markdown.
+2. Do NOT require a Supabase migration.
+3. Every feature must survive a full round trip: TipTap HTML → htmlToMarkdown → stored markdown → markdownToHtml → TipTap HTML.
+4. Anything that renders in the editor must also render on the public site.
+5. Check the installed TipTap major version in `package.json` before choosing package names (v3 re-exports table nodes from `@tiptap/extension-table`).
+6. Watch for duplicate-extension console warnings. Do not add to the known `link`/`underline` warning.

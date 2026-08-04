@@ -32,6 +32,11 @@ export const metadata: Metadata = {
   title: { default: "Dot On The Map", template: "%s | Dot On The Map" },
   description: "Travel journals, itineraries, and photos by Jeremie.",
   robots: { index: true, follow: true },
+  alternates: {
+    types: {
+      "application/rss+xml": `${siteUrl}/feed.xml`,
+    },
+  },
   openGraph: {
     title: "Dot On The Map",
     description: "Travel journals, itineraries, and photos by Jeremie.",

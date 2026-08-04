@@ -6,34 +6,26 @@ type AppImageProps = {
   alt: string;
   className?: string;
   priority?: boolean;
+  /** Explicit sizes for responsive srcset — required for correct candidate selection. */
+  sizes?: string;
 };
 
-/** Supabase Storage must bypass the Next.js optimizer (SSRF / private IP resolution). */
-function shouldLoadDirectly(src: string): boolean {
-  try {
-    const host = new URL(src).hostname;
-    return host.endsWith(".supabase.co") || host.endsWith(".supabase.in");
-  } catch {
-    return false;
-  }
-}
-
-export function AppImage({ src, alt, className, priority }: AppImageProps) {
+/**
+ * Public-site image component.
+ * Uses next/image (AVIF/WebP + srcset). Supabase hosts must be listed in
+ * next.config remotePatterns. Historically we bypassed the optimizer because of
+ * SSRF / private-IP resolution during local builds; public *.supabase.co URLs
+ * are fine on Vercel with remotePatterns.
+ */
+export function AppImage({
+  src,
+  alt,
+  className,
+  priority,
+  sizes = "(min-width: 1024px) 50vw, 100vw",
+}: AppImageProps) {
   const trimmed = src?.trim();
   if (!trimmed) return null;
-
-  if (shouldLoadDirectly(trimmed)) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={trimmed}
-        alt={alt}
-        loading={priority ? "eager" : "lazy"}
-        decoding="async"
-        className={cn("absolute inset-0 h-full w-full object-cover", className)}
-      />
-    );
-  }
 
   return (
     <Image
@@ -41,7 +33,8 @@ export function AppImage({ src, alt, className, priority }: AppImageProps) {
       alt={alt}
       fill
       priority={priority}
-      sizes="(min-width: 1024px) 50vw, 100vw"
+      quality={75}
+      sizes={sizes}
       className={cn("object-cover", className)}
     />
   );

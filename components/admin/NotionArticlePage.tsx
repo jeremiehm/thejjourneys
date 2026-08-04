@@ -16,6 +16,7 @@ import {
 import { NotionBlockEditor, focusNotionEditor } from "@/components/admin/NotionEditor/NotionBlockEditor";
 import { ArticlePreview } from "@/components/admin/NotionEditor/ArticlePreview";
 import { PropertyRow } from "@/components/admin/NotionEditor/PropertyRow";
+import { SeoFieldsPanel } from "@/components/admin/NotionEditor/SeoFieldsPanel";
 import { TitleInput } from "@/components/admin/NotionEditor/TitleInput";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -23,7 +24,7 @@ import type { Article, ArticleBlock, Author, Collection, CoverType } from "@/lib
 import { createArticleBlock } from "@/lib/blocks/defaults";
 import type { ArticleRevision } from "@/lib/article-revisions";
 import type { AiAgent, SiblingArticle } from "@/lib/ai/types";
-import { cn } from "@/lib/utils";
+import { cn, slugify } from "@/lib/utils";
 
 type DisplayStatus = "draft" | "published" | "archived";
 
@@ -75,6 +76,18 @@ function ArticleEditorInner({
   setExcerpt,
   metaDescription,
   setMetaDescription,
+  slug,
+  setSlug,
+  metaTitle,
+  setMetaTitle,
+  ogImageUrl,
+  setOgImageUrl,
+  canonicalUrl,
+  setCanonicalUrl,
+  noindex,
+  setNoindex,
+  persistedSlug,
+  setPersistedSlug,
   blocks,
   setBlocks,
 }: {
@@ -90,6 +103,18 @@ function ArticleEditorInner({
   setExcerpt: (v: string) => void;
   metaDescription: string;
   setMetaDescription: (v: string) => void;
+  slug: string;
+  setSlug: (v: string) => void;
+  metaTitle: string;
+  setMetaTitle: (v: string) => void;
+  ogImageUrl: string;
+  setOgImageUrl: (v: string) => void;
+  canonicalUrl: string;
+  setCanonicalUrl: (v: string) => void;
+  noindex: boolean;
+  setNoindex: (v: boolean) => void;
+  persistedSlug: string;
+  setPersistedSlug: (v: string) => void;
   blocks: ArticleBlock[];
   setBlocks: Dispatch<SetStateAction<ArticleBlock[]>>;
 }) {
@@ -142,7 +167,13 @@ function ArticleEditorInner({
       fd.set("collection_id", collectionId);
       fd.set("author_id", authorId);
       fd.set("excerpt", excerpt);
+      fd.set("meta_title", metaTitle);
       fd.set("meta_description", metaDescription);
+      fd.set("og_image_url", ogImageUrl);
+      fd.set("canonical_url", canonicalUrl);
+      fd.set("noindex", noindex ? "true" : "false");
+      fd.set("slug", slug || slugify(title) || "untitled");
+      fd.set("previous_slug", persistedSlug);
       fd.set("lang", article?.lang ?? "en");
       fd.set("cover_image_url", coverUrl);
       fd.set("cover_type", coverType);
@@ -161,11 +192,17 @@ function ArticleEditorInner({
       contentJson,
       coverType,
       coverUrl,
+      canonicalUrl,
       dbStatus,
       excerpt,
       lastSavedStatus,
       metaDescription,
+      metaTitle,
+      noindex,
+      ogImageUrl,
+      persistedSlug,
       publishedAt,
+      slug,
       title,
     ],
   );
@@ -187,6 +224,10 @@ function ArticleEditorInner({
       }
       if (result.updatedAt) setUpdatedAt(result.updatedAt);
       if (result.publishedAt) setPublishedAt(result.publishedAt);
+      if (result.slug) {
+        setSlug(result.slug);
+        setPersistedSlug(result.slug);
+      }
       setLastSavedStatus(dbStatus);
       setSaveState("saved");
       setSavedAt(new Date());
@@ -199,7 +240,7 @@ function ArticleEditorInner({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [title, excerpt, metaDescription, collectionId, authorId, coverUrl, coverType, status, blocks, runAutosave]);
+  }, [title, excerpt, metaDescription, metaTitle, ogImageUrl, canonicalUrl, noindex, slug, collectionId, authorId, coverUrl, coverType, status, blocks, runAutosave]);
 
   const selectedAuthor = authors.find((a) => a.id === authorId);
 
@@ -314,7 +355,13 @@ function ArticleEditorInner({
               <input type="hidden" name="collection_id" value={collectionId} />
               <input type="hidden" name="author_id" value={authorId} />
               <input type="hidden" name="excerpt" value={excerpt} />
+              <input type="hidden" name="meta_title" value={metaTitle} />
               <input type="hidden" name="meta_description" value={metaDescription} />
+              <input type="hidden" name="og_image_url" value={ogImageUrl} />
+              <input type="hidden" name="canonical_url" value={canonicalUrl} />
+              <input type="hidden" name="noindex" value={noindex ? "true" : "false"} />
+              <input type="hidden" name="slug" value={slug || slugify(title) || "untitled"} />
+              <input type="hidden" name="previous_slug" value={persistedSlug} />
               <input type="hidden" name="lang" value={article?.lang ?? "en"} />
               <input type="hidden" name="cover_image_url" value={coverUrl} />
               <input type="hidden" name="cover_type" value={coverType} />
@@ -483,6 +530,30 @@ function ArticleEditorInner({
             >
               <p className="px-2 py-1.5 text-sm text-stone-500">Updated on every save.</p>
             </PropertyRow>
+
+            <SeoFieldsPanel
+              title={title}
+              collectionSlug={selectedCollection?.slug ?? ""}
+              publishedAt={publishedAt}
+              value={{
+                slug,
+                metaTitle,
+                metaDescription,
+                ogImageUrl,
+                canonicalUrl,
+                noindex,
+                excerpt,
+              }}
+              onChange={(patch) => {
+                if (patch.slug !== undefined) setSlug(patch.slug);
+                if (patch.metaTitle !== undefined) setMetaTitle(patch.metaTitle);
+                if (patch.metaDescription !== undefined) setMetaDescription(patch.metaDescription);
+                if (patch.ogImageUrl !== undefined) setOgImageUrl(patch.ogImageUrl);
+                if (patch.canonicalUrl !== undefined) setCanonicalUrl(patch.canonicalUrl);
+                if (patch.noindex !== undefined) setNoindex(patch.noindex);
+                if (patch.excerpt !== undefined) setExcerpt(patch.excerpt);
+              }}
+            />
           </div>
 
           <div className="notion-editor-wrap mt-6 border-t border-transparent pt-2">
@@ -530,6 +601,13 @@ function ArticleEditorInner({
           onExcerptChange={setExcerpt}
           onMetaDescriptionChange={setMetaDescription}
           onRevisionsRefresh={refreshRevisions}
+          title={title}
+          slug={slug || slugify(title)}
+          metaTitle={metaTitle}
+          ogImageUrl={ogImageUrl}
+          coverImageUrl={coverUrl}
+          noindex={noindex}
+          content={blocks}
         />
       </div>
 
@@ -543,6 +621,13 @@ function ArticleEditorInner({
             onExcerptChange={setExcerpt}
             onMetaDescriptionChange={setMetaDescription}
             onRevisionsRefresh={refreshRevisions}
+            title={title}
+            slug={slug || slugify(title)}
+            metaTitle={metaTitle}
+            ogImageUrl={ogImageUrl}
+            coverImageUrl={coverUrl}
+            noindex={noindex}
+            content={blocks}
           />
         </SheetContent>
       </Sheet>
@@ -562,6 +647,12 @@ function ArticleEditorShell({
   const [title, setTitle] = useState(article?.title ?? "");
   const [excerpt, setExcerpt] = useState(article?.excerpt ?? "");
   const [metaDescription, setMetaDescription] = useState(article?.meta_description ?? "");
+  const [slug, setSlug] = useState(article?.slug ?? "");
+  const [persistedSlug, setPersistedSlug] = useState(article?.slug ?? "");
+  const [metaTitle, setMetaTitle] = useState(article?.meta_title ?? "");
+  const [ogImageUrl, setOgImageUrl] = useState(article?.og_image_url ?? "");
+  const [canonicalUrl, setCanonicalUrl] = useState(article?.canonical_url ?? "");
+  const [noindex, setNoindex] = useState(article?.noindex ?? false);
   const [blocks, setBlocks] = useState<ArticleBlock[]>(() => initialBlocks(article));
 
   const articleState = useMemo(
@@ -591,6 +682,18 @@ function ArticleEditorShell({
         setExcerpt={setExcerpt}
         metaDescription={metaDescription}
         setMetaDescription={setMetaDescription}
+        slug={slug}
+        setSlug={setSlug}
+        metaTitle={metaTitle}
+        setMetaTitle={setMetaTitle}
+        ogImageUrl={ogImageUrl}
+        setOgImageUrl={setOgImageUrl}
+        canonicalUrl={canonicalUrl}
+        setCanonicalUrl={setCanonicalUrl}
+        noindex={noindex}
+        setNoindex={setNoindex}
+        persistedSlug={persistedSlug}
+        setPersistedSlug={setPersistedSlug}
         blocks={blocks}
         setBlocks={setBlocks}
       />

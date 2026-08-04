@@ -45,7 +45,11 @@ export type Database = {
           title: string;
           slug: string;
           excerpt: string | null;
+          meta_title: string | null;
           meta_description: string | null;
+          og_image_url: string | null;
+          canonical_url: string | null;
+          noindex: boolean;
           lang: string;
           cover_image_url: string | null;
           cover_type: "banner" | "above_title" | "below_title";
@@ -57,6 +61,7 @@ export type Database = {
           like_count: number;
           created_at: string;
           updated_at: string;
+          content_updated_at: string | null;
         };
         Insert: {
           id?: string;
@@ -65,7 +70,11 @@ export type Database = {
           title: string;
           slug: string;
           excerpt?: string | null;
+          meta_title?: string | null;
           meta_description?: string | null;
+          og_image_url?: string | null;
+          canonical_url?: string | null;
+          noindex?: boolean;
           lang?: string;
           cover_image_url?: string | null;
           cover_type?: "banner" | "above_title" | "below_title";
@@ -77,6 +86,7 @@ export type Database = {
           like_count?: number;
           created_at?: string;
           updated_at?: string;
+          content_updated_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["articles"]["Insert"]>;
         Relationships: [
@@ -92,6 +102,32 @@ export type Database = {
             columns: ["collection_id"];
             isOneToOne: false;
             referencedRelation: "collections";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      article_redirects: {
+        Row: {
+          id: string;
+          from_slug: string;
+          to_slug: string;
+          article_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          from_slug: string;
+          to_slug: string;
+          article_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["article_redirects"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "article_redirects_article_id_fkey";
+            columns: ["article_id"];
+            isOneToOne: false;
+            referencedRelation: "articles";
             referencedColumns: ["id"];
           },
         ];

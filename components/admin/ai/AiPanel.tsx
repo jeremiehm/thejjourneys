@@ -9,7 +9,9 @@ import { AuditReportView } from "./AuditReport";
 import { DiffView } from "./DiffView";
 import { RevisionHistory } from "./RevisionHistory";
 import { DraftChat } from "./DraftChat";
+import { SeoChecksPanel } from "./SeoChecksPanel";
 import { Button } from "@/components/ui/button";
+import type { ArticleBlock } from "@/lib/blocks/types";
 
 type AiPanelProps = {
   articleId: string;
@@ -19,6 +21,13 @@ type AiPanelProps = {
   onExcerptChange: (v: string) => void;
   onMetaDescriptionChange: (v: string) => void;
   onRevisionsRefresh: () => void;
+  title: string;
+  slug: string;
+  metaTitle: string;
+  ogImageUrl: string;
+  coverImageUrl: string;
+  noindex: boolean;
+  content: ArticleBlock[];
 };
 
 export function AiPanel({
@@ -29,6 +38,13 @@ export function AiPanel({
   onExcerptChange,
   onMetaDescriptionChange,
   onRevisionsRefresh,
+  title,
+  slug,
+  metaTitle,
+  ogImageUrl,
+  coverImageUrl,
+  noindex,
+  content,
 }: AiPanelProps) {
   const {
     pendingEdit,
@@ -59,9 +75,10 @@ export function AiPanel({
       </div>
 
       <Tabs defaultValue="draft" className="flex flex-1 flex-col overflow-hidden">
-        <TabsList className="mx-4 mt-3 grid w-auto grid-cols-4">
+        <TabsList className="mx-4 mt-3 grid w-auto grid-cols-5">
           <TabsTrigger value="draft">Chat</TabsTrigger>
           <TabsTrigger value="actions">Actions</TabsTrigger>
+          <TabsTrigger value="checks">Checks</TabsTrigger>
           <TabsTrigger value="audit">Audit</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
@@ -105,6 +122,19 @@ export function AiPanel({
               />
               <p className="text-xs text-stone-400">{metaDescription.length} characters (target 140-155)</p>
             </div>
+          </TabsContent>
+
+          <TabsContent value="checks" className="mt-0">
+            <SeoChecksPanel
+              title={title}
+              slug={slug}
+              metaTitle={metaTitle}
+              metaDescription={metaDescription}
+              ogImageUrl={ogImageUrl}
+              coverImageUrl={coverImageUrl}
+              noindex={noindex}
+              content={content}
+            />
           </TabsContent>
 
           <TabsContent value="audit" className="mt-0 space-y-4">
