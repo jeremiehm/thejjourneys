@@ -20,6 +20,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: article.title,
     description: article.meta_description ?? article.excerpt ?? undefined,
+    robots: { index: true, follow: true },
     openGraph: {
       title: article.title,
       description: article.meta_description ?? article.excerpt ?? undefined,

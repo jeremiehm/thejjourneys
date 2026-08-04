@@ -1,7 +1,10 @@
-import Link from "next/link";
+"use client";
+
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { Components } from "react-markdown";
 import type { ArticleBlock, ColumnContentBlock } from "@/lib/blocks/types";
+import { AffiliateLink } from "@/components/affiliate-link";
 import { BlockLayoutShell } from "@/components/public/block-layout-shell";
 import { isBlockFullWidth } from "@/lib/blocks/block-layout";
 import { spanToColClass } from "@/lib/blocks/layout-presets";
@@ -19,14 +22,41 @@ function embedUrl(url: string) {
   return url;
 }
 
+const markdownComponents: Components = {
+  a({ href, children, ...props }) {
+    const url = href ?? "";
+    const external = /^https?:\/\//i.test(url);
+
+    if (external) {
+      return (
+        <a href={url} target="_blank" rel="noopener noreferrer" {...props}>
+          {children}
+        </a>
+      );
+    }
+
+    return (
+      <a href={url} {...props}>
+        {children}
+      </a>
+    );
+  },
+};
+
+function MarkdownBody({ markdown }: { markdown: string }) {
+  return (
+    <div className="prose prose-stone max-w-none prose-headings:font-semibold prose-a:text-amber-700">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+        {markdown}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
 function ColumnContentView({ block }: { block: ColumnContentBlock }) {
   switch (block.type) {
     case "text":
-      return (
-        <div className="prose prose-stone max-w-none prose-headings:font-semibold prose-a:text-amber-700">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.data.markdown}</ReactMarkdown>
-        </div>
-      );
+      return <MarkdownBody markdown={block.data.markdown} />;
     case "image": {
       if (!block.data.url?.trim()) return null;
       const width = block.data.widthPercent ?? 100;
@@ -93,11 +123,7 @@ export function ArticleBlockView({ block }: { block: ArticleBlock }) {
   const inner = (() => {
     switch (block.type) {
       case "text":
-        return (
-          <div className="prose prose-stone max-w-none prose-headings:font-semibold prose-a:text-amber-700">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.data.markdown}</ReactMarkdown>
-          </div>
-        );
+        return <MarkdownBody markdown={block.data.markdown} />;
       case "gallery":
         return (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -135,8 +161,9 @@ export function ArticleBlockView({ block }: { block: ArticleBlock }) {
         );
       case "affiliate":
         return (
-          <Link
+          <AffiliateLink
             href={block.data.url}
+            provider={block.data.title}
             className="block rounded-3xl border border-stone-200 bg-white p-6 shadow-sm transition hover:shadow-lg"
           >
             <p className="text-sm uppercase tracking-[0.2em] text-stone-500">Useful link</p>
@@ -145,7 +172,7 @@ export function ArticleBlockView({ block }: { block: ArticleBlock }) {
             <span className="mt-4 inline-flex rounded-full bg-stone-950 px-4 py-2 text-sm font-semibold text-white">
               {block.data.cta}
             </span>
-          </Link>
+          </AffiliateLink>
         );
       case "video":
         return (

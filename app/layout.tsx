@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { AnalyticsProvider } from "@/components/analytics-provider";
 import { siteUrl } from "@/lib/env";
 import "./globals.css";
 
@@ -30,6 +31,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: { default: "Dot On The Map", template: "%s | Dot On The Map" },
   description: "Travel journals, itineraries, and photos by Jeremie.",
+  robots: { index: true, follow: true },
   openGraph: {
     title: "Dot On The Map",
     description: "Travel journals, itineraries, and photos by Jeremie.",
@@ -41,7 +43,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${helvena.variable} ${bethany.variable} h-full antialiased`}>
-      <body className="min-h-full bg-background font-sans text-foreground">{children}</body>
+      <body className="min-h-full bg-background font-sans text-foreground">
+        <AnalyticsProvider>
+          {children}
+        </AnalyticsProvider>
+      </body>
     </html>
   );
 }

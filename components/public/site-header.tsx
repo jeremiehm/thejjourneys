@@ -20,7 +20,6 @@ export async function SiteHeader() {
             ))}
           </div>
           <Link href="/about" className="hover:text-stone-950">About</Link>
-          <Link href="/admin" className="rounded-full border border-stone-300 px-3 py-1.5 hover:border-stone-950 hover:text-stone-950">Admin</Link>
         </nav>
       </div>
     </header>
